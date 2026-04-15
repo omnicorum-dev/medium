@@ -9,7 +9,7 @@ target_include_directories(glad PUBLIC glad/include)
 add_subdirectory(glfw)
 
 add_executable(Medium testing/main.cpp)
-target_include_directories(Medium PUBLIC glad/include glfw/include)
+target_include_directories(Medium PUBLIC glad/include glfw/include graphite base-layer ./)
 target_link_libraries(Medium PRIVATE glfw glad)
 
 # === Platform-specific system linking ===

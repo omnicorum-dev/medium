@@ -5,8 +5,8 @@
 #ifndef MEDIUM_H
 #define MEDIUM_H
 
-#include "base-layer/base.h"
-#include "graphite/graphite.h"
+#include <base.h>
+#include <graphite.h>
 using namespace omni::basic;
 
 class Medium {

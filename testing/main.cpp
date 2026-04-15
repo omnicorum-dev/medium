@@ -2,9 +2,9 @@
 // Created by Nico Russo on 4/15/26.
 //
 #define DISABLE_TRACE
-#include "../graphite/graphite.h"
-#include "../mediumOpenGL.h"
-#include "../base-layer/base.h"
+#include <graphite.h>
+#include <mediumOpenGL.h>
+#include <base.h>
 #include <random>
 
 using namespace omni;

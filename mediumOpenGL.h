@@ -11,9 +11,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "medium.h"
-#include "base-layer/base.h"
-#include "graphite/graphite.h"
+#include <medium.h>
+#include <base.h>
+#include <graphite.h>
 
 
 class MediumOpenGL : public Medium {

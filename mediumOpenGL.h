@@ -18,7 +18,6 @@
 
 class MediumOpenGL : public Medium {
 private:
-    const char* windowTitle = "Graphite";
     GLFWwindow* window = nullptr;
     GLuint shader = {};
     GLuint vao = {};
@@ -179,10 +178,6 @@ private:
 
 public:
 
-    void setWindowTitle(const char* title) {
-        windowTitle = title;
-    }
-
     u32 mediumStartup() override {
         if (!glfwInit()) return -1;
 
@@ -190,7 +185,7 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-        window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, windowTitle, nullptr, nullptr);
+        window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, windowName.c_str(), nullptr, nullptr);
         if (!window) return -1;
 
         glfwMakeContextCurrent(window);

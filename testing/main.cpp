@@ -86,6 +86,7 @@ Graphite::Canvas& gameUpdate(f32 dt) {
 }
 
 int main() {
+    game.setWindowName("Medium Testing");
 
     game.mediumInit(1920/2, 1080/2, 1920/2, 1080/2);
     LOG_DEBUG("Game Resolution: {}x{}", game.GAME_WIDTH, game.GAME_HEIGHT);

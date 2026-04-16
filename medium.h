@@ -11,15 +11,21 @@ using namespace omni::basic;
 
 class Medium {
 public:
-    u32* backBuffer;
+    u32* backBuffer = nullptr;
 
-    u32 SCREEN_WIDTH;
-    u32 SCREEN_HEIGHT;
-    u32 GAME_WIDTH;
-    u32 GAME_HEIGHT;
+    u32 SCREEN_WIDTH = 0;
+    u32 SCREEN_HEIGHT = 0;
+    u32 GAME_WIDTH = 0;
+    u32 GAME_HEIGHT = 0;
+
+    std::string windowName = "Graphite";
 
     Graphite::Canvas canvas;
 
+    Medium() = default;
+    explicit Medium(const std::string& _windowName) {
+        windowName = _windowName;
+    }
     virtual ~Medium() = default;
 
     void mediumInit(const u32 consoleWidth, const u32 consoleHeight, const u32 gameWidth, const u32 gameHeight) {
@@ -27,6 +33,10 @@ public:
         SCREEN_HEIGHT = consoleHeight;
         GAME_WIDTH = gameWidth;
         GAME_HEIGHT = gameHeight;
+    }
+
+    void setWindowName(const std::string& _windowName) {
+        windowName = _windowName;
     }
 
     virtual u32 mediumStartup() = 0;

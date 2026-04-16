@@ -1,4 +1,2 @@
 cmake-build-debug
 .idea
-vendor/base-layer
-vendor/graphite

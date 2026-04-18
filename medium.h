@@ -7,6 +7,11 @@
 
 #include <base.h>
 #include <graphite.h>
+
+#include <keyCodes.h>
+#include <mouseButtons.h>
+#include <gamepadInputs.h>
+
 using namespace omni::basic;
 
 class Medium {
@@ -20,7 +25,7 @@ public:
 
     std::string windowName = "Graphite";
 
-    Graphite::Canvas canvas;
+    Graphite::Canvas canvas = {};
 
     Medium() = default;
     explicit Medium(const std::string& _windowName) {
@@ -40,8 +45,10 @@ public:
     }
 
     virtual u32 mediumStartup() = 0;
-    virtual void mediumRun(std::function<Graphite::Canvas&(f32)> gameUpdate) = 0;
+    virtual void mediumRun(std::function<void(f32)> gameUpdate) = 0;
     virtual u32 mediumShutdown() = 0;
+
+    [[nodiscard]] virtual void* getNativeWindow() const = 0;
 };
 
 #endif //MEDIUM_H

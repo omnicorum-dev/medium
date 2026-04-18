@@ -14,7 +14,7 @@ add_subdirectory(vendor/glfw)
 add_subdirectory(vendor/graphite)
 
 # EXECUTABLE
-add_executable(MediumTesting testing/main.cpp)
+add_executable(MediumTesting testing/test3d.cpp)
 target_include_directories(MediumTesting PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )

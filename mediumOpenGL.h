@@ -21,7 +21,7 @@ private:
     GLFWwindow* window = nullptr;
     GLuint shader = {};
     GLuint vao = {};
-    u32* frontBuffer;
+    u32* frontBuffer = nullptr;
 
     GLuint screen_texture = 0;
 
@@ -56,7 +56,7 @@ private:
         );
     }
 
-    static GLuint createShader(const GLenum type, const char* src) {
+    GLuint createShader(const GLenum type, const char* src) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &src, nullptr);
     glCompileShader(shader);
@@ -75,7 +75,7 @@ private:
     return shader;
 }
 
-    static GLuint createShaderProgram(const char* vertSrc, const char* fragSrc) {
+    GLuint createShaderProgram(const char* vertSrc, const char* fragSrc) {
         const GLuint vertShader = createShader(GL_VERTEX_SHADER, vertSrc);
         if (vertShader == 0) return 0;
 
@@ -109,7 +109,7 @@ private:
         return program;
     }
 
-    static GLuint createFullscreenQuadVAO() {
+    GLuint createFullscreenQuadVAO() {
         float vertices[] = {
             // pos      // uv
             -1.f, -1.f,  0.f, 1.f,
@@ -231,7 +231,7 @@ public:
         return 0;
     }
 
-    void mediumRun(std::function<Graphite::Canvas&(f32)> gameUpdate) override {
+    void mediumRun(std::function<void(f32)> gameUpdate) override {
         double last_time = glfwGetTime();
 
         while (!glfwWindowShouldClose(window)) {
@@ -245,7 +245,8 @@ public:
             // 1. UPDATE (writes to BACK buffer)
             double t0 = glfwGetTime();
             canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
-            Graphite::Canvas& gameCanvas = gameUpdate(dt);
+            //Graphite::Canvas& gameCanvas = gameUpdate(dt);
+            gameUpdate(dt);
             double t10 = glfwGetTime();
             //consoleCanvas.blitCanvas(gameCanvas);
 
@@ -276,6 +277,10 @@ public:
         glfwDestroyWindow(window);
         glfwTerminate();
         return 0;
+    }
+
+    void* getNativeWindow() const override {
+        return window;
     }
 
 };

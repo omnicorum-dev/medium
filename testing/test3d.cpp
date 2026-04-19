@@ -27,89 +27,11 @@ constexpr Color FOREGROUND = Colors::Green;
 
 void clear() { canvas.fillStupid(0x18); }
 
-Vec2<i32> worldToScreen(const Vec2<f32>& p)
-{
-    float s = std::min((float)WIDTH, (float)HEIGHT);
-
-    float cx = WIDTH  * 0.5f;
-    float cy = HEIGHT * 0.5f;
-
-    return {
-        (i32)(cx + p.x * s * 0.5f),
-        (i32)(cy - p.y * s * 0.5f)
-    };
-}
-
-Vec2<f32> project(const Vec3<f32>& p) {
-    return {
-        p.x/p.z,
-        p.y/p.z
-    };
-}
-
-Vec3<f32> translate(const Vec3<f32>& p, const Vec3<f32>& translation) {
-    return {
-        p.x + translation.x,
-        p.y + translation.y,
-        p.z + translation.z
-    };
-}
-
-Vec3<f32> rotateXZ(const Vec3<f32>& p, const f32 angleRadians) {
-    const f32 c = cosf(angleRadians);
-    const f32 s = sinf(angleRadians);
-    return {
-        p.x*c - p.z*s,
-        p.y,
-        p.x*s + p.z*c,
-    };
-}
-
-Vec3<f32> points[] = {
-    { 0.25, 0.25,0.25},
-    {-0.25, 0.25,0.25},
-    { 0.25,-0.25,0.25},
-    {-0.25,-0.25,0.25},
-
-    { 0.25, 0.25,-0.25},
-    {-0.25, 0.25,-0.25},
-    { 0.25,-0.25,-0.25},
-    {-0.25,-0.25,-0.25},
-};
-
-struct Face {
-    std::vector<i32> pointIndices;
-};
-
-Face faces[] = {
-    {{0, 1, 3, 2}},
-    {{4, 5, 7, 6}},
-    {{0, 4}},
-    {{1, 5}},
-    {{2, 6}},
-    {{3, 7}},
-};
-
-Vec3<f32> trianglePoints[] = {
-    {+0.5,-0.5, 0},
-    {-0.5,-0.5, 0},
-    {+0.0,+0.5, 0},
-};
-
-Face triangleFaces[] = {
-    {{0, 1, 2}}
-};
-
 f32 dz = 0.5;
 f32 angle = 0;
 
-struct Point {
-    Vec3<f32> position;
-    Vec2<f32> uv;
-};
-
-struct Object {
-    std::vector<Point> vertices;
+/*struct Object {
+    std::vector<Point3D> vertices;
     std::vector<std::vector<i32>> faces;
     Vec3<f32> position;
     f32 rotationXZ;
@@ -180,79 +102,78 @@ struct Object {
             }
         }
     }
-};
+};*/
 
 Canvas tex("../testing/D.jpg");
 
-Object quad = {
+Object3D quad = {
     {
-        {{-0.5, -0.5, 0.25}, {0, 0}},
-        {{+0.5, -0.5, 0.25}, {1, 0}},
-        {{-0.5, +0.5, -0.25}, {0, 1}},
-        {{+0.5, +0.5, -0.25}, {1, 1}}
+        {{-0.5, -0.5, -0.5}, 0xff0000ff},
+        {{+0.5, -0.5, -0.5}, 0xff00ff00},
+        {{-0.5, +0.5, -0.5}, 0xffff0000},
+        {{+0.5, +0.5, -0.5}, 0xffffffff},
+
+        {{-0.5, -0.5, 0.5}, 0xff0000ff},
+        {{+0.5, -0.5, 0.5}, 0xff00ff00},
+        {{-0.5, +0.5, 0.5}, 0xffff0000},
+        {{+0.5, +0.5, 0.5}, 0xffffffff}
     },
 
     {
-        {0, 2, 3, 1}
+        {0, 2, 3, 1},
+        {4, 6, 7, 5},
+        {2, 6, 7, 3},
+        {0, 4, 5, 1}
     },
 
 {0, 0, 1.5},
 
-0,
-
-    tex
+{0, 0, 0}
 };
 
-Object triangle = {
-    {
-        {{+0.5,-0.5, 0}, {0, 0}},
-        {{-0.5,-0.5, 0}, {0, 1}},
-        {{+0.0,+0.5, 0}, {1, 0}}
-    },
-
-    {{0, 1, 2}},
-
-    {0, 0, 1.5},
-
-    0,
-
-    tex
+Camera camera = {
+    {0, 0, 0},
+    {0, 0, 0}
 };
 
 float rotSpeed = 0;
 void gameUpdate(const f32 dt) {
     clear();
 
-    //Vec2<i32> tp1 = {50, 100 + static_cast<int>((std::sin(dz)+1) * 100)};
-    //canvas.fillTriangle(tp1.x, tp1.y, 150, 50, 250, 300, 0xff0000ff, 0xff00ff00, 0xffff0000);
+    float moveSpeed = 5.f;
+    float rotSpeed = 3.f;
 
-    //canvas.drawPoint(WIDTH/2, HEIGHT/2, 2, Colors::White);
+    /*if (Input::isKeyPressed(MED_KEY_W)) { camera.position = camera.position + camera.forwardCam() * speed * dt; }
+    if (Input::isKeyPressed(MED_KEY_S)) { camera.position = camera.position + camera.backwardCam() * speed * dt; }
+    if (Input::isKeyPressed(MED_KEY_A)) { camera.position = camera.position + camera.leftCam() * speed * dt; }
+    if (Input::isKeyPressed(MED_KEY_D)) { camera.position = camera.position + camera.rightCam() * speed * dt; }
+    if (Input::isKeyPressed(MED_KEY_Q)) { camera.position = camera.position + camera.downCam() * speed * dt; }
+    if (Input::isKeyPressed(MED_KEY_E)) { camera.position = camera.position + camera.upCam() * speed * dt; }*/
 
-    quad.rotationXZ += rotSpeed * M_PI * dt;;
+    if (Input::isKeyPressed(MED_KEY_W)) {camera.position = camera.position + camera.directionObj(Dir3D::FORWARD) * moveSpeed * dt;}
+    if (Input::isKeyPressed(MED_KEY_S)) {camera.position = camera.position + camera.directionObj(Dir3D::BACKWARD) * moveSpeed * dt;}
+    if (Input::isKeyPressed(MED_KEY_A)) {camera.position = camera.position + camera.directionObj(Dir3D::LEFT) * moveSpeed * dt;}
+    if (Input::isKeyPressed(MED_KEY_D)) {camera.position = camera.position + camera.directionObj(Dir3D::RIGHT) * moveSpeed * dt;}
+    if (Input::isKeyPressed(MED_KEY_E)) {camera.position = camera.position + camera.directionObj(Dir3D::UP) * moveSpeed * dt;}
+    if (Input::isKeyPressed(MED_KEY_Q)) {camera.position = camera.position + camera.directionObj(Dir3D::DOWN) * moveSpeed * dt;}
 
-    float speed = 10.f;
-    float rotAccel = 1.f;
+    if (Input::isKeyPressed(MED_KEY_I)) { camera.rotation.x -= rotSpeed * dt; }
+    if (Input::isKeyPressed(MED_KEY_K)) { camera.rotation.x += rotSpeed * dt; }
+    if (Input::isKeyPressed(MED_KEY_J)) { camera.rotation.y += rotSpeed * dt; }
+    if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y -= rotSpeed * dt; }
+    //if (Input::isKeyPressed(MED_KEY_U)) { camera.rotation.z += speed * dt; }
+    //if (Input::isKeyPressed(MED_KEY_O)) { camera.rotation.z -= speed * dt; }
 
-    if (Input::isKeyPressed(MED_KEY_W)) { quad.position.z += speed * dt; }
-    if (Input::isKeyPressed(MED_KEY_S)) { quad.position.z -= speed * dt; }
-    if (Input::isKeyPressed(MED_KEY_A)) { quad.position.x -= speed * dt; }
-    if (Input::isKeyPressed(MED_KEY_D)) { quad.position.x += speed * dt; }
-    if (Input::isKeyPressed(MED_KEY_Q)) { quad.position.y -= speed * dt; }
-    if (Input::isKeyPressed(MED_KEY_E)) { quad.position.y += speed * dt; }
-    if (Input::isMouseButtonPressed(MED_MOUSE_BUTTON_LEFT)) { rotSpeed += rotAccel * dt; }
-    if (Input::isMouseButtonPressed(MED_MOUSE_BUTTON_RIGHT)) { rotSpeed -= rotAccel * dt; }
+    //quad.draw(canvas);
+    //quad.drawWireframe(canvas, Colors::Green, 2);
 
-    quad.draw(canvas);
-    quad.drawWireframe(canvas, Colors::Green, 2);
+    camera.drawObjectWireframe(quad, canvas, Colors::Green, 2);
 
     const f32 fps = 1/dt;
     canvas.writeStringBaseline(stringPrint("FPS: {}", fps), 10, 26, 16, Colors::White);
 
     std::pair<f32, f32> mousePosition = Input::getMousePosition();
     canvas.writeStringBaseline(stringPrint("Mouse Pos: ({}, {})", mousePosition.first, mousePosition.second), 10, 52, 16, Colors::White);
-
-
-
 
 
 
@@ -283,7 +204,7 @@ void gameUpdate(const f32 dt) {
 }
 
 int main(int argc, char **argv) {
-    //game.setWindowName("3D Testing");
+    game.setWindowName("3D Testing");
 
     //tex.fillTriangle(0, 0, tex.getWidth(), 0, 0, tex.getHeight(), 0xff0000ff, 0xff00ff00, 0xffff0000);
     //tex.fillTriangle(tex.getWidth(), tex.getHeight(), tex.getWidth(), 0, 0, tex.getHeight(), 0xffffffff, 0xff00ff00, 0xffff0000);

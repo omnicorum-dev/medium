@@ -27,13 +27,10 @@ constexpr Color FOREGROUND = Colors::Green;
 
 void clear() { canvas.fillStupid(0x18); }
 
-f32 dz = 0.5;
-f32 angle = 0;
-
 Object3D cube = loadOBJ("../monkey.obj");
 
 Camera camera = {
-    {0, 0, 0},
+    {0, 0, -2},
     {0, 0, 0}
 };
 

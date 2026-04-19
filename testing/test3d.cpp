@@ -11,23 +11,23 @@
 using namespace omni;
 using namespace Graphite;
 
-MediumOpenGL game;
-Input* Input::instance = new InputGLFW(&game);
-Canvas& canvas = game.canvas;
-
 #define WIDTH  800
 #define HEIGHT 600
 
-#define RATIO ((f32)WIDTH/HEIGHT)
+MediumOpenGL game;
+Input* Input::instance = new InputGLFW(&game);
+Canvas& canvas = game.canvas;
+Canvas zBuffer(WIDTH, HEIGHT);
+
 
 #define POINT_SIZE 5
 
 constexpr Color BACKGROUND = Colors::DarkGrey;
 constexpr Color FOREGROUND = Colors::Green;
 
-void clear() { canvas.fillStupid(0x18); }
+void clear() { canvas.fillStupid(0x18); zBuffer.fillFast(0xff000000); }
 
-Object3D cube = loadOBJ("../monkey.obj");
+Object3D cube = loadOBJ("../icosphere.obj");
 
 Camera camera = {
     {0, 0, -2},
@@ -53,6 +53,8 @@ void gameUpdate(const f32 dt) {
     if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y -= rotSpeed * dt; }
 
     camera.drawObject(cube, canvas);
+
+    canvas.drawCanvas(WIDTH - 100, HEIGHT - 100, 90, 90, zBuffer);
 
     const f32 fps = 1/dt;
     canvas.writeStringBaseline(stringPrint("FPS: {}", fps), 10, 26, 16, Colors::White);

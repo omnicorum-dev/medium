@@ -11,23 +11,23 @@
 using namespace omni;
 using namespace Graphite;
 
-#define WIDTH  800
-#define HEIGHT 600
+#define WIDTH  400
+#define HEIGHT 300
 
 MediumOpenGL game;
 Input* Input::instance = new InputGLFW(&game);
 Canvas& canvas = game.canvas;
 Canvas zBuffer(WIDTH, HEIGHT);
 
-
-#define POINT_SIZE 5
-
 constexpr Color BACKGROUND = Colors::DarkGrey;
 constexpr Color FOREGROUND = Colors::Green;
 
 void clear() { canvas.fillStupid(0x18); zBuffer.fillFast(0xff000000); }
 
-Object3D cube = loadOBJ("../utah_teapot_6.obj");
+//Object3D cube = loadOBJ("../utah_teapot_6.obj");
+
+Object3D sphere = loadOBJ("../uv_sphere.obj");
+Canvas sphereTex("../sphere_uv.png");
 
 Camera camera = {
     {0, 0, -2},
@@ -52,7 +52,8 @@ void gameUpdate(const f32 dt) {
     if (Input::isKeyPressed(MED_KEY_J)) { camera.rotation.y += rotSpeed * dt; }
     if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y -= rotSpeed * dt; }
 
-    camera.drawObject(cube, canvas, zBuffer);
+    //camera.drawObject_UV(sphere, canvas);
+    camera.drawObjectTexture(sphere, canvas, nullptr);
 
     const f32 fps = 1/dt;
     canvas.writeStringBaseline(stringPrint("FPS: {}", fps), 10, 26, 16, Colors::White);
@@ -60,6 +61,8 @@ void gameUpdate(const f32 dt) {
 
 int main(int argc, char **argv) {
     game.setWindowName("3D Testing");
+
+    sphere.tex = &sphereTex;
 
     game.mediumInit(WIDTH*2, HEIGHT*2, WIDTH, HEIGHT);
     LOG_DEBUG("Game Resolution: {}x{}", game.GAME_WIDTH, game.GAME_HEIGHT);

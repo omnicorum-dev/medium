@@ -18,7 +18,7 @@ add_executable(MediumTesting testing/test3d.cpp)
 target_include_directories(MediumTesting PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(MediumTesting PRIVATE glfw glad Graphite BaseLayer)
+target_link_libraries(MediumTesting PRIVATE glfw glad Graphite)
 
 # === Platform-specific system linking ===
 if(APPLE)
@@ -39,14 +39,12 @@ elseif(WIN32)
     )
 endif()
 
-
-
 # ================ LIBRARY VERSION ================
 add_library(Medium INTERFACE)
 target_include_directories(Medium INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(Medium INTERFACE glfw glad Graphite BaseLayer)
+target_link_libraries(Medium INTERFACE glfw glad Graphite)
 
 # === Platform-specific system linking ===
 if(APPLE)

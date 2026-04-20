@@ -23,8 +23,8 @@ constexpr Color BACKGROUND = Colors::DarkGrey;
 constexpr Color FOREGROUND = Colors::Green;
 
 void clearNew() {
-    canvas.fill(Color(static_cast<uint32_t>(0x18181818)));
-    zBuffer.fill(Color(static_cast<uint32_t>(0x00000000)));
+    canvas.fill(0x18181818);
+    zBuffer.fill(0x00000000);
 }
 
 //Object3D cube = loadOBJ("../utah_teapot_6.obj");

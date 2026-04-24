@@ -1,0 +1,7 @@
+20260424181744
+make the input system not a singleton if possible
+50
+open
+bug,feature,input
+
+using the input system with registering event callbacks is kind of clunky. make it easier and make the input system NOT a singleton

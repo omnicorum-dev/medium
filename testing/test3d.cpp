@@ -11,11 +11,12 @@
 using namespace omni;
 using namespace Graphite;
 
-#define WIDTH  320
-#define HEIGHT 180
+#define WIDTH  (800)
+#define HEIGHT (600)
 
 MediumOpenGL game;
-Input* Input::instance = new InputGLFW(&game);
+Input* Input::instance = nullptr;
+std::map<std::pair<int,int>, Input::EventCallback> Input::eventCallbacks;
 Canvas& canvas = game.canvas;
 Canvas zBuffer(WIDTH, HEIGHT);
 
@@ -35,28 +36,18 @@ Canvas sphereTex("../sphere_uv.png");
 Object3D teapot = loadOBJ("../teapot_6.obj");
 Canvas teapotTex("../teapot_6_tex.png");
 
+Canvas uvTex("../uv_tex.jpg");
+
 Camera camera = {
     {0, 0, -2},
     {0, 0, 0}
 };
 
-struct keyPress {
-    int key{};
-    bool pressed = false;
+f32 average_fps = 0;
 
-    bool check() {
-        if (Input::isKeyPressed(key)) {
-            if (!pressed) {
-                pressed = true;
-                return true;
-            }
-            pressed = true;
-        } else {
-            pressed = false;
-        }
-        return false;
-    }
-};
+void leftMouseClick() {
+    omni::LOG_DEBUG("Mouse Left Clicked!!!");
+}
 
 void gameUpdate(const f32 dt) {
     clearNew();
@@ -76,25 +67,39 @@ void gameUpdate(const f32 dt) {
     if (Input::isKeyPressed(MED_KEY_J)) { camera.rotation.y -= rotSpeed * dt; }
     if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y += rotSpeed * dt; }
 
+    camera.drawObject(teapot, canvas, &zBuffer);
     camera.drawObject(sphere, canvas, &zBuffer);
-    //camera.drawObjectWireframe(sphere, canvas, Colors::Orange, 1);
 
     const f32 fps = 1/dt;
-    canvas.writeStringBaseline(stringPrint("FPS: {}", fps), 10, 26, 16, Colors::White);
+    average_fps = (average_fps + fps)/2;
+    canvas.writeStringBaseline(stringPrint("FPS {}", average_fps), 10, 28, 16, Colors::White);
 }
 
 int main(int argc, char **argv) {
     game.setWindowName("3D Testing");
 
-    sphere.tex = &sphereTex;
-    teapot.tex = &teapotTex;
+    teapot.tex = &uvTex;
+    sphere.tex = &uvTex;
 
-    game.mediumInit(WIDTH*4, HEIGHT*4, WIDTH, HEIGHT);
+    uvTex.writeOmniStringBaseline("let's fucking go!!", 10, 200, 7);
+    uvTex.writeOmniStringBaseline("yeah i can't lie this is sick as hell", 10, 275, 3);
+
+    sphere.position = {0, 0, 10};
+
+    game.mediumInit(WIDTH*2, HEIGHT*2, WIDTH, HEIGHT);
     LOG_DEBUG("Game Resolution: {}x{}", game.GAME_WIDTH, game.GAME_HEIGHT);
     LOG_DEBUG("Screen Resolution: {}x{}", game.SCREEN_WIDTH, game.SCREEN_HEIGHT);
+
     game.mediumStartup();
+
+    Input::instance = new InputGLFW(&game);
+    Input::registerEventCallback(MED_MOUSE_BUTTON_LEFT, MED_PRESS, leftMouseClick);
+
+
     game.mediumRun(gameUpdate);
     game.mediumShutdown();
+
+    delete Input::instance;
 
     return 0;
 }

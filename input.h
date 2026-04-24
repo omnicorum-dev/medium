@@ -6,6 +6,7 @@
 #define MEDIUM_INPUT_H
 
 #include <base.h>
+#include <map>
 
 #include <medium.h>
 
@@ -14,6 +15,8 @@ public:
     Medium* medium;
     Input(Medium* medium) : medium(medium) {}
 
+    using EventCallback = std::function<void()>;
+
     virtual ~Input () = default;
 
     static bool isKeyPressed(const int keycode) { return instance->isKeyPressedImpl(keycode); }
@@ -21,6 +24,11 @@ public:
     static std::pair<float, float> getMousePosition() { return instance->getMousePositionImpl(); }
     static float getMouseX() { return instance->getMouseXImpl(); }
     static float getMouseY() { return instance->getMouseYImpl(); }
+    static void eventCallback(int eventObject, int eventType) { instance->eventCallbackImpl(eventObject, eventType); }
+
+    static void registerEventCallback(int eventObject, int eventType, const EventCallback &callback) {
+        eventCallbacks[{eventObject, eventType}] = callback;
+    }
 
 protected:
     virtual bool isKeyPressedImpl(int keycode) = 0;
@@ -29,7 +37,16 @@ protected:
     virtual float getMouseXImpl() = 0;
     virtual float getMouseYImpl() = 0;
 
-private:
+    virtual void eventCallbackImpl(int eventObject, int eventType) {
+        auto it = eventCallbacks.find({eventObject, eventType});
+        if (it != eventCallbacks.end()) {
+            it->second();
+        }
+    }
+
+    static std::map<std::pair<int, int>, EventCallback> eventCallbacks;
+
+public:
     static Input* instance;
 };
 

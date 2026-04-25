@@ -11,8 +11,8 @@
 //using namespace omni;
 using namespace Graphite;
 
-#define WIDTH  (800)
-#define HEIGHT (600)
+#define WIDTH  (1920/3)
+#define HEIGHT (1080/3)
 
 #define LOG_LEVEL_CMD 6
 
@@ -55,6 +55,7 @@ int visibleLines = 10;
 std::string userInput;
 
 void clearNew() {
+    //canvas.fill(0x18181818);
     canvas.fill(0x18181818);
     zBuffer.fill(0x00000000);
 }
@@ -62,7 +63,7 @@ void clearNew() {
 Object3D sphere = loadOBJ("../uv_sphere.obj");
 Canvas sphereTex("../sphere_uv.png");
 
-Object3D teapot = loadOBJ("../teapot_6.obj");
+Object3D teapot = loadOBJ("../utah_teapot_4.obj");
 Canvas teapotTex("../teapot_6_tex.png");
 
 Canvas uvTex("../uv_tex.jpg");
@@ -139,11 +140,84 @@ void leftMouseClick() {
     omni::LOG_DEBUG("Left mouse");
 }
 
+void renderLogView() {
+    int y = 53;
+    canvas.fillRect(5, 40, canvas.getWidth() - 10, 12 * visibleLines + 4, Colors::Black);
+    int count = (int)logger.size();
+
+    // maximum amount you can scroll upward
+    int maxScroll = std::max(0, count - visibleLines);
+
+    // clamp global scroll value
+    if (logScroll < 0) logScroll = 0;
+    if (logScroll > maxScroll) logScroll = maxScroll;
+
+    // start index:
+    // scroll 0 = newest logs
+    // scroll max = oldest logs
+    int start = count - visibleLines - logScroll;
+    if (start < 0) start = 0;
+
+    int end = std::min(count, start + visibleLines);
+
+    for (int i = start; i < end; ++i) {
+        const LogEvent& logEvent = logger[i];
+        std::string msg;
+
+        switch (logEvent.level) {
+            case LOG_LEVEL_INFO:
+                msg = stringPrint(" [INFO] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Green);
+                break;
+
+            case LOG_LEVEL_DEBUG:
+                msg = stringPrint("[DEBUG] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightBlue);
+                break;
+
+            case LOG_LEVEL_WARN:
+                msg = stringPrint(" [WARN] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Yellow);
+                break;
+
+            case LOG_LEVEL_ERROR:
+                msg = stringPrint("[ERROR] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
+                break;
+
+            case LOG_LEVEL_FATAL:
+                msg = stringPrint("[FATAL] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
+                break;
+
+            case LOG_LEVEL_TRACE:
+                msg = stringPrint("[TRACE] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightGrey);
+                break;
+
+            case LOG_LEVEL_CMD:
+                msg = stringPrint("  [CMD] {}", logEvent.message);
+                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Pink);
+                break;
+            default:
+                LOG_ERROR("INVALID COMMAND TYPE");
+        }
+
+        y += 12;
+    }
+
+
+    canvas.fillRect(5, canvas.getHeight() - (18+25), canvas.getWidth() - 10, 18, Colors::Black);
+    canvas.writeStringBaseline(userInput + "_", 10, canvas.getHeight() - 30, 8, Colors::White);
+}
+
+fvec3 sun = glm::normalize(fvec3{-1, -1, -1});
+
 void gameUpdate(const f32 dt) {
     clearNew();
 
     constexpr float moveSpeed = 5.f;
-    constexpr float rotSpeed = 3.f;
+    constexpr float rotSpeed = 2.f;
 
     if (!logViewEnabled) {
         if (Input::isKeyPressed(MED_KEY_W)) {camera.position = camera.position + camera.directionObj(Dir3D::FORWARD) * moveSpeed * dt;}
@@ -159,82 +233,26 @@ void gameUpdate(const f32 dt) {
         if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y += rotSpeed * dt; }
     }
 
-    camera.drawObject(teapot, canvas, &zBuffer);
-    camera.drawObject(sphere, canvas, &zBuffer);
+    //camera.drawObjectSingleColor(teapot, canvas, &zBuffer, true, true, sun);
+    //camera.drawObjectSingleColor(sphere, canvas, &zBuffer, true, true, sun);
+    camera.drawObjectSingleColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = true, .sunVector = sun});
+    camera.drawObjectSingleColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = true, .sunVector = sun});
+
+    /*
+    sphere.rotation.x += rotSpeed * dt;
+    sphere.rotation.y += rotSpeed * dt;
+    teapot.rotation.x += rotSpeed * dt;
+    teapot.rotation.y += rotSpeed * dt;
+    */
+
+    sun = rotateY(sun, rotSpeed * dt);
 
     const f32 fps = 1/dt;
     average_fps = (average_fps + fps)/2;
     canvas.writeStringBaseline(stringPrint("FPS {}", average_fps), 10, 28, 16, Colors::White);
 
     if (logViewEnabled) {
-        int y = 53;
-        canvas.fillRect(5, 40, canvas.getWidth() - 10, 12 * visibleLines + 4, Colors::Black);
-        int count = (int)logger.size();
-
-        // maximum amount you can scroll upward
-        int maxScroll = std::max(0, count - visibleLines);
-
-        // clamp global scroll value
-        if (logScroll < 0) logScroll = 0;
-        if (logScroll > maxScroll) logScroll = maxScroll;
-
-        // start index:
-        // scroll 0 = newest logs
-        // scroll max = oldest logs
-        int start = count - visibleLines - logScroll;
-        if (start < 0) start = 0;
-
-        int end = std::min(count, start + visibleLines);
-
-        for (int i = start; i < end; ++i) {
-            const LogEvent& logEvent = logger[i];
-            std::string msg;
-
-            switch (logEvent.level) {
-                case LOG_LEVEL_INFO:
-                    msg = stringPrint(" [INFO] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::Green);
-                    break;
-
-                case LOG_LEVEL_DEBUG:
-                    msg = stringPrint("[DEBUG] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightBlue);
-                    break;
-
-                case LOG_LEVEL_WARN:
-                    msg = stringPrint(" [WARN] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::Yellow);
-                    break;
-
-                case LOG_LEVEL_ERROR:
-                    msg = stringPrint("[ERROR] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
-                    break;
-
-                case LOG_LEVEL_FATAL:
-                    msg = stringPrint("[FATAL] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
-                    break;
-
-                case LOG_LEVEL_TRACE:
-                    msg = stringPrint("[TRACE] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightGrey);
-                    break;
-
-                case LOG_LEVEL_CMD:
-                    msg = stringPrint("  [CMD] {}", logEvent.message);
-                    canvas.writeStringBaseline(msg, 10, y, 8, Colors::Pink);
-                    break;
-                default:
-                    LOG_ERROR("INVALID COMMAND TYPE");
-            }
-
-            y += 12;
-        }
-
-
-        canvas.fillRect(5, canvas.getHeight() - (18+25), canvas.getWidth() - 10, 18, Colors::Black);
-        canvas.writeStringBaseline(userInput, 10, canvas.getHeight() - 30, 8, Colors::White);
+        renderLogView();
     }
 }
 

@@ -16,6 +16,7 @@ public:
     Input(Medium* medium) : medium(medium) {}
 
     using EventCallback = std::function<void()>;
+    using GlobalEventCallback = std::function<void(int, int, int, double, double)>;
 
     virtual ~Input () = default;
 
@@ -24,10 +25,13 @@ public:
     static std::pair<float, float> getMousePosition() { return instance->getMousePositionImpl(); }
     static float getMouseX() { return instance->getMouseXImpl(); }
     static float getMouseY() { return instance->getMouseYImpl(); }
-    static void eventCallback(int eventObject, int eventType) { instance->eventCallbackImpl(eventObject, eventType); }
 
     static void registerEventCallback(int eventObject, int eventType, const EventCallback &callback) {
         eventCallbacks[{eventObject, eventType}] = callback;
+    }
+
+    static void registerGlobalCallback(const GlobalEventCallback &callback) {
+        globalCallback = callback;
     }
 
 protected:
@@ -43,6 +47,12 @@ protected:
             it->second();
         }
     }
+
+    virtual void globalCallbackImpl(const int object, const int action, const int mods, const double x, const double y) {
+        globalCallback(object, action, mods, x, y);
+    }
+
+    static GlobalEventCallback globalCallback;
 
     static std::map<std::pair<int, int>, EventCallback> eventCallbacks;
 

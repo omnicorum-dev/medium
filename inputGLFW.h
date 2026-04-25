@@ -20,6 +20,7 @@ public:
         glfwSetWindowUserPointer(window, this);
         glfwSetKeyCallback(window, glfwKeyCallback);
         glfwSetMouseButtonCallback(window, glfwMouseButtonCallback);
+        glfwSetScrollCallback(window, glfwScrollCallback);
     }
 protected:
     bool isKeyPressedImpl(const int keycode) override {
@@ -49,18 +50,27 @@ protected:
         return getMousePositionImpl().second;
     }
 
+    /*
     void eventCallbackImpl(int eventObject, int eventType) override {
         Input::eventCallbackImpl(eventObject, eventType); // Dispatches to user callbacks
+    }
+    */
+
+    static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+        auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
+        self->globalCallbackImpl(MED_MOUSE_SCROLL, 0, 0, xoffset, yoffset);
     }
 
     static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
         self->eventCallbackImpl(key, action);
+        self->globalCallbackImpl(key, action, mods, 0, 0);
     }
 
     static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
         self->eventCallbackImpl(button, action);
+        self->globalCallbackImpl(button, action, mods, 0, 0);
     }
 };
 

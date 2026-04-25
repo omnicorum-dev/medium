@@ -266,7 +266,7 @@ public:
             glfwSwapBuffers(window);
 
             double t5 = glfwGetTime();
-            LOG_TRACE("gameUpdate: {}s, blitCanvas: {}s, swap_buffers: {}s, upload_front_buffer: {}s, render_screen: {}s, glfwSwapBuffers: {}s", t10-t0, t1-t10, t2-t1, t3-t2, t4-t3, t5-t4);
+            //LOG_TRACE("gameUpdate: {}s, blitCanvas: {}s, swap_buffers: {}s, upload_front_buffer: {}s, render_screen: {}s, glfwSwapBuffers: {}s", t10-t0, t1-t10, t2-t1, t3-t2, t4-t3, t5-t4);
         }
     }
 

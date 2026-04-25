@@ -136,4 +136,66 @@
 #define MED_MOD_CAPS_LOCK       0x0010
 #define MED_MOD_NUM_LOCK        0x0020
 
+inline char keycodeToChar(const int keycode, const int mods)
+{
+    const bool shift = (mods & MED_MOD_SHIFT) != 0;
+    const bool caps  = (mods & MED_MOD_CAPS_LOCK) != 0;
+
+    // Letters: Shift XOR Caps Lock = uppercase
+    if (keycode >= MED_KEY_A && keycode <= MED_KEY_Z)
+    {
+        bool upper = shift ^ caps;
+        return static_cast<char>((upper ? 'A' : 'a') + (keycode - MED_KEY_A));
+    }
+
+    // Number row
+    switch (keycode)
+    {
+        case MED_KEY_0: return shift ? ')' : '0';
+        case MED_KEY_1: return shift ? '!' : '1';
+        case MED_KEY_2: return shift ? '@' : '2';
+        case MED_KEY_3: return shift ? '#' : '3';
+        case MED_KEY_4: return shift ? '$' : '4';
+        case MED_KEY_5: return shift ? '%' : '5';
+        case MED_KEY_6: return shift ? '^' : '6';
+        case MED_KEY_7: return shift ? '&' : '7';
+        case MED_KEY_8: return shift ? '*' : '8';
+        case MED_KEY_9: return shift ? '(' : '9';
+
+        case MED_KEY_SPACE:        return ' ';
+        case MED_KEY_APOSTROPHE:   return shift ? '"' : '\'';
+        case MED_KEY_COMMA:        return shift ? '<' : ',';
+        case MED_KEY_MINUS:        return shift ? '_' : '-';
+        case MED_KEY_PERIOD:       return shift ? '>' : '.';
+        case MED_KEY_SLASH:        return shift ? '?' : '/';
+        case MED_KEY_SEMICOLON:    return shift ? ':' : ';';
+        case MED_KEY_EQUAL:        return shift ? '+' : '=';
+        case MED_KEY_LEFT_BRACKET: return shift ? '{' : '[';
+        case MED_KEY_BACKSLASH:    return shift ? '|' : '\\';
+        case MED_KEY_RIGHT_BRACKET:return shift ? '}' : ']';
+        case MED_KEY_GRAVE_ACCENT: return shift ? '~' : '`';
+
+        // Keypad (Num Lock assumed on if present)
+        case MED_KEY_KP_0: return '0';
+        case MED_KEY_KP_1: return '1';
+        case MED_KEY_KP_2: return '2';
+        case MED_KEY_KP_3: return '3';
+        case MED_KEY_KP_4: return '4';
+        case MED_KEY_KP_5: return '5';
+        case MED_KEY_KP_6: return '6';
+        case MED_KEY_KP_7: return '7';
+        case MED_KEY_KP_8: return '8';
+        case MED_KEY_KP_9: return '9';
+        case MED_KEY_KP_DECIMAL: return '.';
+        case MED_KEY_KP_DIVIDE:  return '/';
+        case MED_KEY_KP_MULTIPLY:return '*';
+        case MED_KEY_KP_SUBTRACT:return '-';
+        case MED_KEY_KP_ADD:     return '+';
+        case MED_KEY_KP_EQUAL:   return '=';
+
+        default:
+            return '\0'; // non-printable key
+    }
+}
+
 #endif //MEDIUM_KEYCODES_H

@@ -47,15 +47,25 @@ Canvas zBuffer(WIDTH, HEIGHT);
 constexpr Color BACKGROUND = Colors::DarkGrey;
 constexpr Color FOREGROUND = Colors::Green;
 
+enum RenderType {
+    TEX, COLOR, DEPTH, VERTEX, SINGLE
+};
+
 bool  logViewEnabled = false;
 float logScroll = 0;
-
 int visibleLines = 10;
+bool diffuseLightingEnabled = false;
+RenderType renderType = RenderType::VERTEX;
+bool renderVertices = false;
+bool renderSunVector = false;
+Color vertexColor = Colors::Blue;
+Color objectColor = Colors::Green;
+Color sunVecColor = Colors::Yellow;
+int vertexPointSize = 1;
 
 std::string userInput;
 
 void clearNew() {
-    //canvas.fill(0x18181818);
     canvas.fill(0x18181818);
     zBuffer.fill(0x00000000);
 }
@@ -67,6 +77,8 @@ Object3D teapot = loadOBJ("../utah_teapot_4.obj");
 Canvas teapotTex("../teapot_6_tex.png");
 
 Canvas uvTex("../uv_tex.jpg");
+
+Canvas pureWhite("../pure_white.jpg");
 
 Camera camera = {
     {0, 0, -2},
@@ -87,24 +99,121 @@ bool isValidNumber(const std::string& s)
     }
 }
 
+bool commandFailed(const std::stringstream& ss, const std::string& command) {
+    if (ss.fail()) {
+        omni::LOG_ERROR("Invalid command '{}'", command);
+        return true;
+    }
+    return false;
+}
+
+void commandFailed(const std::string& command) {
+    omni::LOG_ERROR("Invalid command '{}'", command);
+}
+
 void handleCommand(const std::string& command) {
     std::stringstream ss(command);
     std::string word;
     while (ss >> word) {
-        if (word == "set") {
+        if (word == "help") {
+            omni::LOG_INFO("render <tex/color/depth/vertex/single>:");
+            omni::LOG_INFO("      set which render type is displayed");
+            omni::LOG_INFO("               diffuse <on/off>: enable or disable diffuse lighting");
+            omni::LOG_INFO("                 lines <number>: number of lines visible in console");
+            omni::LOG_INFO("              obj color [color]: set color of objects in single mode");
+            omni::LOG_INFO("                points <on/off>: render vertices of objects");
+            omni::LOG_INFO("           points color [color]: set color of vertex points");
+            omni::LOG_INFO("                sunvec <on/off>: render arrow showing sun direction");
+            omni::LOG_INFO("           sunvec color [color]: set sun vector color");
+            omni::LOG_INFO("                         colors: list available colors");
+        }
+        if (word == "colors") {
+            omni::LOG_INFO("Red, Green, Blue, LightBlue, White, Black, Yellow, Pink");
+            omni::LOG_INFO("Orange, Cyan, Purple, Tan, DarkGrey, Grey, LightGrey, Brown");
+        }
+        if (word == "render") {
             ss >> word;
-            if (ss.fail()) {
-                omni::LOG_ERROR("Invalid command '{}'", command);
-                return;
+            if (commandFailed(ss, word)) return;
+            if (word == "tex") {
+                renderType = RenderType::TEX;
+            } else if (word == "color") {
+                renderType = RenderType::COLOR;
+            } else if (word == "depth") {
+                renderType = RenderType::DEPTH;
+            } else if (word == "vertex") {
+                renderType = RenderType::VERTEX;
+            } else if (word == "single") {
+                renderType = RenderType::SINGLE;
+            } else {
+                commandFailed(command);
             }
-            if (word == "lines") {
+        }
+        if (word == "diffuse") {
+            ss >> word;
+            if (commandFailed(ss, word)) return;
+            if (word == "on") {
+                diffuseLightingEnabled = true;
+            } else if (word == "off") {
+                diffuseLightingEnabled = false;
+            } else {
+                commandFailed(command);
+            }
+        }
+        if (word == "points") {
+            ss >> word;
+            if (commandFailed(ss, word)) return;
+            if (word == "on") {
+                renderVertices = true;
+            } else if (word == "off") {
+                renderVertices = false;
+            } else if (word == "color") {
+                ss >> word;
+                if (commandFailed(ss, word)) return;
+                vertexColor = stringToColor(word);
+            } else if (word == "size") {
                 ss >> word;
                 if (ss.fail() || !isValidNumber(word)) {
                     omni::LOG_ERROR("Invalid command '{}'", command);
                     return;
                 }
-                visibleLines = std::stoi(word);
+                vertexPointSize = std::stoi(word);
             }
+            else {
+                commandFailed(command);
+            }
+        }
+        if (word == "obj") {
+            ss >> word;
+            if (commandFailed(ss, word)) return;
+            if (word == "color") {
+                ss >> word;
+                if (commandFailed(ss, word)) return;
+                objectColor = stringToColor(word);
+            }
+        }
+        if (word == "sunvec") {
+            ss >> word;
+            if (commandFailed(ss, word)) return;
+            if (word == "on") {
+                renderSunVector = true;
+            } else if (word == "off") {
+                renderSunVector = false;
+            } else if (word == "color") {
+                ss >> word;
+                if (commandFailed(ss, word)) return;
+                sunVecColor = stringToColor(word);
+            }
+            else {
+                commandFailed(command);
+            }
+        }
+        if (word == "lines") {
+            ss >> word;
+            if (ss.fail() || !isValidNumber(word)) {
+                omni::LOG_ERROR("Invalid command '{}'", command);
+                return;
+            }
+            visibleLines = std::stoi(word);
         }
     }
 }
@@ -216,8 +325,17 @@ fvec3 sun = glm::normalize(fvec3{-1, -1, -1});
 void gameUpdate(const f32 dt) {
     clearNew();
 
+    // =========== MOVEMENTS ===========
     constexpr float moveSpeed = 5.f;
     constexpr float rotSpeed = 2.f;
+    constexpr float objRotSpeed = 0.5f;
+
+    sphere.rotation.x += objRotSpeed * dt;
+    sphere.rotation.y += objRotSpeed * dt;
+    teapot.rotation.x += objRotSpeed * dt;
+    teapot.rotation.y += objRotSpeed * dt;
+
+    sun = rotateY(sun, rotSpeed * dt);
 
     if (!logViewEnabled) {
         if (Input::isKeyPressed(MED_KEY_W)) {camera.position = camera.position + camera.directionObj(Dir3D::FORWARD) * moveSpeed * dt;}
@@ -233,24 +351,59 @@ void gameUpdate(const f32 dt) {
         if (Input::isKeyPressed(MED_KEY_L)) { camera.rotation.y += rotSpeed * dt; }
     }
 
-    //camera.drawObjectSingleColor(teapot, canvas, &zBuffer, true, true, sun);
-    //camera.drawObjectSingleColor(sphere, canvas, &zBuffer, true, true, sun);
-    camera.drawObjectSingleColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = true, .sunVector = sun});
-    camera.drawObjectSingleColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = true, .sunVector = sun});
+    // =========== MAIN RENDERING ===========
+    switch (renderType) {
+        case TEX:
+            camera.drawObjectTexture(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectTexture(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            break;
+        case COLOR:
+            camera.drawObjectColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            break;
+        case DEPTH:
+            camera.drawObjectDepth(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectDepth(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            break;
+        case VERTEX:
+            camera.drawObjectVertexColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectVertexColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            break;
+        case SINGLE:
+            camera.drawObjectSingleColor(teapot, canvas, objectColor, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectSingleColor(sphere, canvas, objectColor, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+    }
 
-    /*
-    sphere.rotation.x += rotSpeed * dt;
-    sphere.rotation.y += rotSpeed * dt;
-    teapot.rotation.x += rotSpeed * dt;
-    teapot.rotation.y += rotSpeed * dt;
-    */
+    if (renderVertices) {
+        camera.drawObjectVertices(sphere, canvas, vertexColor, vertexPointSize);
+        camera.drawObjectVertices(teapot, canvas, vertexColor, vertexPointSize);
+    }
 
-    sun = rotateY(sun, rotSpeed * dt);
+    // =========== PURE SPHERE EXPERIMENT ===========
+    constexpr fvec3 spherePosition = {0, 2, 6};
+    const vec2 positionScreen = camera.transformPoint(spherePosition);
 
+    if (positionScreen != vec2(TRANSFORM_OUT_OF_CAMERA_BOUNDS)) {
+        float sphereRadius = 1;
+        const vec2 positionPixel = normalizedToScreen(positionScreen, canvas.getWidth(), canvas.getHeight());
+        const float projectedRadius = camera.worldRadiusToPixels(spherePosition, sphereRadius, canvas);
+
+        canvas.drawCircle(positionPixel, projectedRadius, Colors::Red);
+    }
+
+    // =========== RENDER SUN VECTOR ===========
+    if (renderSunVector) {
+        const vec2 sunDirCam = camera.transformDirection(sun) * 20.0f;
+        const vec2 center = {canvas.getWidth() / 2, canvas.getHeight() / 2};
+        canvas.drawArrow(center, center - sunDirCam, sunVecColor, 1, 5);
+    }
+
+    // =========== FPS COUNTER ===========
     const f32 fps = 1/dt;
     average_fps = (average_fps + fps)/2;
     canvas.writeStringBaseline(stringPrint("FPS {}", average_fps), 10, 28, 16, Colors::White);
 
+    // =========== CONSOLE VIEW ===========
     if (logViewEnabled) {
         renderLogView();
     }
@@ -281,10 +434,6 @@ int main(int argc, char **argv) {
     Input::instance = new InputGLFW(&game);
     Input::registerEventCallback(MED_MOUSE_BUTTON_LEFT, MED_PRESS, leftMouseClick);
     Input::registerEventCallback(MED_KEY_GRAVE_ACCENT, MED_PRESS, []() { logViewEnabled = !logViewEnabled; logScroll = 0; });
-    Input::registerEventCallback(MED_KEY_MINUS, MED_PRESS, []()  {logScroll += 1;});
-    Input::registerEventCallback(MED_KEY_MINUS, MED_REPEAT, []() {logScroll += 1;});
-    Input::registerEventCallback(MED_KEY_EQUAL, MED_PRESS, []()  {logScroll -= 1;});
-    Input::registerEventCallback(MED_KEY_EQUAL, MED_REPEAT, []() {logScroll -= 1;});
 
     Input::registerGlobalCallback(globalEventCallback);
 

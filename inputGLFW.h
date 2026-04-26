@@ -6,10 +6,7 @@
 #define MEDIUM_INPUTGLFW_H
 
 #include <input.h>
-#include <base.h>
-
 #include <GLFW/glfw3.h>
-#include <eventTypes.h>
 
 class InputGLFW : public Input {
 public:
@@ -49,12 +46,6 @@ protected:
     float getMouseYImpl() override {
         return getMousePositionImpl().second;
     }
-
-    /*
-    void eventCallbackImpl(int eventObject, int eventType) override {
-        Input::eventCallbackImpl(eventObject, eventType); // Dispatches to user callbacks
-    }
-    */
 
     static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));

@@ -8,10 +8,6 @@
 #include <base.h>
 #include <graphite.h>
 
-#include <keyCodes.h>
-#include <mouseButtons.h>
-#include <gamepadInputs.h>
-
 using namespace omni::basic;
 
 class Medium {

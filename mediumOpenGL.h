@@ -5,9 +5,7 @@
 #ifndef MEDIUMOPENGL_H
 #define MEDIUMOPENGL_H
 
-#include <cstdint>
 #include <cstring>
-#include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 #include <glad/glad.h>

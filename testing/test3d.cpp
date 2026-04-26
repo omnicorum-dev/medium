@@ -17,8 +17,8 @@
 //using namespace omni;
 using namespace Graphite;
 
-#define WIDTH  (1920/3)
-#define HEIGHT (1080/3)
+#define WIDTH  (1920/2)
+#define HEIGHT (1080/2)
 
 #define LOG_LEVEL_CMD 6
 
@@ -82,7 +82,7 @@ void clearNew() {
 Object3D sphere = loadOBJ(assetRoot / "uv_sphere.obj");
 Canvas sphereTex(assetRoot / "sphere_uv.png");
 
-Object3D teapot = loadOBJ(assetRoot / "cube.obj");
+Object3D teapot = loadOBJ(assetRoot / "utah_teapot_6.obj");
 Canvas teapotTex(assetRoot / "teapot_6_tex.png");
 
 Canvas uvTex(assetRoot / "uv_tex.jpg");

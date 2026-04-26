@@ -2,6 +2,12 @@
 // Created by Nico Russo on 4/17/26.
 //
 //#define DISABLE_TRACE
+
+#ifdef RELEASE_MODE
+#define DISABLE_TRACE
+#define DISABLE_DEBUG
+#endif
+
 #include <graphite.h>
 #include <mediumOpenGL.h>
 #include <inputGLFW.h>
@@ -70,15 +76,15 @@ void clearNew() {
     zBuffer.fill(0x00000000);
 }
 
-Object3D sphere = loadOBJ("../uv_sphere.obj");
-Canvas sphereTex("../sphere_uv.png");
+Object3D sphere = loadOBJ("assets/uv_sphere.obj");
+Canvas sphereTex("assets/sphere_uv.png");
 
-Object3D teapot = loadOBJ("../utah_teapot_4.obj");
-Canvas teapotTex("../teapot_6_tex.png");
+Object3D teapot = loadOBJ("assets/cube.obj");
+Canvas teapotTex("assets/teapot_6_tex.png");
 
-Canvas uvTex("../uv_tex.jpg");
+Canvas uvTex("assets/uv_tex.jpg");
 
-Canvas pureWhite("../pure_white.jpg");
+Canvas pureWhite("assets/pure_white.jpg");
 
 Camera camera = {
     {0, 0, -2},
@@ -130,6 +136,9 @@ void handleCommand(const std::string& command) {
         if (word == "colors") {
             omni::LOG_INFO("Red, Green, Blue, LightBlue, White, Black, Yellow, Pink");
             omni::LOG_INFO("Orange, Cyan, Purple, Tan, DarkGrey, Grey, LightGrey, Brown");
+        }
+        if (word == "clear") {
+            logger.clear();
         }
         if (word == "render") {
             ss >> word;

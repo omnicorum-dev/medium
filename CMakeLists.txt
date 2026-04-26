@@ -13,12 +13,26 @@ add_subdirectory(vendor/glfw)
 # My libs
 add_subdirectory(vendor/graphite)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DDEBUG_MODE)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_definitions(-DRELEASE_MODE)
+endif()
+
 # EXECUTABLE
 add_executable(MediumTesting testing/test3d.cpp)
 target_include_directories(MediumTesting PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_link_libraries(MediumTesting PRIVATE glfw glad Graphite)
+
+set(ASSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+
+add_custom_command(TARGET MediumTesting POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${ASSET_DIR}
+        $<TARGET_FILE_DIR:MediumTesting>/assets
+)
 
 # === Platform-specific system linking ===
 if(APPLE)

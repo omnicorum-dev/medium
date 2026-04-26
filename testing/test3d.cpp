@@ -50,6 +50,9 @@ Input::GlobalEventCallback Input::globalCallback;
 Canvas& canvas = game.canvas;
 Canvas zBuffer(WIDTH, HEIGHT);
 
+std::filesystem::path assetRoot = game.getAssetRoot();
+std::filesystem::path saveRoot  = game.getSaveRoot();
+
 constexpr Color BACKGROUND = Colors::DarkGrey;
 constexpr Color FOREGROUND = Colors::Green;
 
@@ -76,15 +79,13 @@ void clearNew() {
     zBuffer.fill(0x00000000);
 }
 
-Object3D sphere = loadOBJ("assets/uv_sphere.obj");
-Canvas sphereTex("assets/sphere_uv.png");
+Object3D sphere = loadOBJ(assetRoot / "uv_sphere.obj");
+Canvas sphereTex(assetRoot / "sphere_uv.png");
 
-Object3D teapot = loadOBJ("assets/cube.obj");
-Canvas teapotTex("assets/teapot_6_tex.png");
+Object3D teapot = loadOBJ(assetRoot / "cube.obj");
+Canvas teapotTex(assetRoot / "teapot_6_tex.png");
 
-Canvas uvTex("assets/uv_tex.jpg");
-
-Canvas pureWhite("assets/pure_white.jpg");
+Canvas uvTex(assetRoot / "uv_tex.jpg");
 
 Camera camera = {
     {0, 0, -2},
@@ -420,6 +421,9 @@ void gameUpdate(const f32 dt) {
 
 int main(int argc, char **argv) {
     game.setWindowName("3D Testing");
+
+    LOG_DEBUG("Assets Root: {}", assetRoot.string());
+    LOG_DEBUG("Save Root:   {}", saveRoot.string());
 
     teapot.tex = &uvTex;
     sphere.tex = &uvTex;

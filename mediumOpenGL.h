@@ -8,12 +8,23 @@
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
+#include <filesystem>
+#include <stdexcept>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <medium.h>
 #include <base.h>
 #include <graphite.h>
+
+#if defined(_WIN32)
+    #include <windows.h>
+#elif defined(__APPLE__)
+    #include <mach-o/dyld.h>
+#elif defined(__linux__)
+    #include <unistd.h>
+    #include <limits.h>
+#endif
 
 
 class MediumOpenGL : public Medium {
@@ -24,7 +35,6 @@ private:
     u32* frontBuffer = nullptr;
 
     GLuint screen_texture = 0;
-
 
     void initBuffers(int w, int h) {
         frontBuffer = new std::uint32_t[w * h];
@@ -57,23 +67,23 @@ private:
     }
 
     GLuint createShader(const GLenum type, const char* src) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &src, nullptr);
-    glCompileShader(shader);
+        GLuint shader = glCreateShader(type);
+        glShaderSource(shader, 1, &src, nullptr);
+        glCompileShader(shader);
 
-    GLint compiled;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (!compiled) {
-        GLint length = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-        std::vector<char> errorLog(length);
-        glGetShaderInfoLog(shader, length, &length, errorLog.data());
-        std::cerr << "Shader compilation failed:\n" << errorLog.data() << std::endl;
-        glDeleteShader(shader);
-        return 0;
+        GLint compiled;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+        if (!compiled) {
+            GLint length = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+            std::vector<char> errorLog(length);
+            glGetShaderInfoLog(shader, length, &length, errorLog.data());
+            std::cerr << "Shader compilation failed:\n" << errorLog.data() << std::endl;
+            glDeleteShader(shader);
+            return 0;
+        }
+        return shader;
     }
-    return shader;
-}
 
     GLuint createShaderProgram(const char* vertSrc, const char* fragSrc) {
         const GLuint vertShader = createShader(GL_VERTEX_SHADER, vertSrc);
@@ -279,7 +289,46 @@ public:
         return 0;
     }
 
-    void* getNativeWindow() const override {
+    static std::filesystem::path getExecutablePath() {
+#if defined(_WIN32)
+        char buffer[1024];
+        DWORD len = GetModuleFileName(nullptr, buffer, 1024);
+        if (len == 0) throw std::runtime_error("GetModuleFileName failed");
+        return std::filesystem::path(buffer);
+#elif defined(__APPLE__)
+        uint32_t size = 0;
+        _NSGetExecutablePath(nullptr, &size); // get required size
+        std::string buffer(size, '\0');
+
+        if (_NSGetExecutablePath(buffer.data(), &size) != 0) {
+            throw std::runtime_error("NSGetExecutablePath failed");
+        }
+
+        return std::filesystem::canonical(buffer);
+#elif defined(__linux__)
+        char buffer[1024];
+        ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer));
+        if (len == -1) throw std::runtime_error("readlink failed");
+
+        return std::filesystem::path(std::string(buffer, len));
+#else
+#error Unsupported platform
+#endif
+    }
+
+    static std::filesystem::path getExecutableDir() {
+        return getExecutablePath().parent_path();
+    }
+
+    std::filesystem::path getAssetRoot() override {
+        return getExecutableDir() / "assets";
+    }
+
+    std::filesystem::path getSaveRoot() override {
+        return getExecutableDir() / "saves";
+    }
+
+    [[nodiscard]] void* getNativeWindow() const override {
         return window;
     }
 

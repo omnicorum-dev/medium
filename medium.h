@@ -48,6 +48,9 @@ public:
     virtual void mediumRun(std::function<void(f32)> gameUpdate) = 0;
     virtual u32 mediumShutdown() = 0;
 
+    virtual std::filesystem::path getAssetRoot() = 0;
+    virtual std::filesystem::path getSaveRoot()  = 0;
+
     [[nodiscard]] virtual void* getNativeWindow() const = 0;
 };
 

@@ -71,6 +71,7 @@ Color vertexColor = Colors::Blue;
 Color objectColor = Colors::Green;
 Color sunVecColor = Colors::Yellow;
 int vertexPointSize = 1;
+bool captureCursor = false;
 
 std::string userInput;
 
@@ -137,6 +138,14 @@ void handleCommand(const std::string& command) {
         if (word == "colors") {
             omni::LOG_INFO("Red, Green, Blue, LightBlue, White, Black, Yellow, Pink");
             omni::LOG_INFO("Orange, Cyan, Purple, Tan, DarkGrey, Grey, LightGrey, Brown");
+        }
+        if (word == "capture") {
+            captureCursor = !captureCursor;
+            if (captureCursor) {
+                game.cursorCapture();
+            } else {
+                game.cursorShow();
+            }
         }
         if (word == "clear") {
             logger.clear();

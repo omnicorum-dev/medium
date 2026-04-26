@@ -51,6 +51,18 @@ public:
     virtual std::filesystem::path getAssetRoot() = 0;
     virtual std::filesystem::path getSaveRoot()  = 0;
 
+    virtual void cursorHide() {
+        LOG_ERROR("cursorHide() not implemented for current platform");
+    }
+
+    virtual void cursorShow() {
+        LOG_ERROR("cursorShow() not implemented for current platform");
+    }
+
+    virtual void cursorCapture() {
+        LOG_ERROR("cursorCapture() not implemented for current platform");
+    }
+
     [[nodiscard]] virtual void* getNativeWindow() const = 0;
 };
 

@@ -332,6 +332,18 @@ public:
         return window;
     }
 
+    void cursorHide() override {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    }
+
+    void cursorShow() override {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    void cursorCapture() override {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+
 };
 
 #endif //MEDIUMOPENGL_H

@@ -14,7 +14,6 @@
 #include <base.h>
 #include <random>
 
-//using namespace omni;
 using namespace Graphite;
 
 #define WIDTH  (1920/2)

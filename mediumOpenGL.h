@@ -34,6 +34,35 @@ private:
 
     GLuint screen_texture = 0;
 
+    struct Viewport { int x, y, w, h; };
+
+    [[nodiscard]] Viewport computeLetterboxViewport(const int winW, const int winH) const {
+        const float targetAspect = (float)GAME_WIDTH / (float)GAME_HEIGHT;
+        const float windowAspect = (float)winW / (float)winH;
+
+        int vpW, vpH;
+        if (windowAspect > targetAspect) {
+            // Window is wider than canvas → pillarbox
+            vpH = winH;
+            vpW = (int)(winH * targetAspect);
+        } else {
+            // Window is taller than canvas → letterbox
+            vpW = winW;
+            vpH = (int)(winW / targetAspect);
+        }
+
+        const int vpX = (winW - vpW) / 2;
+        const int vpY = (winH - vpH) / 2;
+
+        return { vpX, vpY, vpW, vpH };
+    }
+
+    static void framebufferSizeCallback(GLFWwindow* window, const int width, const int height) {
+        const MediumOpenGL* self = static_cast<MediumOpenGL*>(glfwGetWindowUserPointer(window));
+        auto [x, y, w, h] = self->computeLetterboxViewport(width, height);
+        glViewport(x, y, w, h);
+    }
+
     void initBuffers(int w, int h) {
         frontBuffer = new std::uint32_t[w * h];
         backBuffer  = new std::uint32_t[w * h];
@@ -198,6 +227,11 @@ public:
 
         glfwMakeContextCurrent(window);
         glfwSwapInterval(0);
+
+        // Register before any GL calls that depend on window size
+        glfwSetWindowUserPointer(window, this);
+        glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
             return -1;
         }
@@ -233,7 +267,10 @@ public:
         shader = createShaderProgram(vertexSrc, fragmentSrc);
         vao = createFullscreenQuadVAO();
 
-        glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        auto [x, y, w, h] = computeLetterboxViewport(fbW, fbH);
+        glViewport(x, y, w, h);
         glClearColor(0, 0, 0, 1);
 
         return 0;
@@ -250,31 +287,20 @@ public:
 
             glfwPollEvents();
 
-            // 1. UPDATE (writes to BACK buffer)
-            double t0 = glfwGetTime();
+            // Recompute letterbox every frame — handles resize automatically
+            int fbW, fbH;
+            glfwGetFramebufferSize(window, &fbW, &fbH);
+            auto vp = computeLetterboxViewport(fbW, fbH);
+            glViewport(vp.x, vp.y, vp.w, vp.h);
+
             canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
-            //Graphite::Canvas& gameCanvas = gameUpdate(dt);
             gameUpdate(dt);
-            double t10 = glfwGetTime();
-            //consoleCanvas.blitCanvas(gameCanvas);
 
-            // 2. SWAP (back becomes front)
-            double t1 = glfwGetTime();
             swap_buffers();
-
-            // 3. GPU upload (reads FRONT buffer)
-            double t2 = glfwGetTime();
             upload_front_buffer();
-
-            // 4. DRAW
-            double t3 = glfwGetTime();
             render_screen();
 
-            double t4 = glfwGetTime();
             glfwSwapBuffers(window);
-
-            double t5 = glfwGetTime();
-            //LOG_TRACE("gameUpdate: {}s, blitCanvas: {}s, swap_buffers: {}s, upload_front_buffer: {}s, render_screen: {}s, glfwSwapBuffers: {}s", t10-t0, t1-t10, t2-t1, t3-t2, t4-t3, t5-t4);
         }
     }
 

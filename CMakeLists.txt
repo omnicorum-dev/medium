@@ -20,8 +20,8 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # EXECUTABLE
-add_executable(MediumTesting testing/test3d.cpp)
-#add_executable(MediumTesting testing/gpu_system.cpp)
+#add_executable(MediumTesting testing/test3d.cpp)
+add_executable(MediumTesting testing/new.cpp)
 target_include_directories(MediumTesting PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )

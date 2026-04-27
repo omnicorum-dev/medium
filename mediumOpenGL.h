@@ -24,6 +24,7 @@
     #include <limits.h>
 #endif
 
+#define Shader GLuint
 
 class MediumOpenGL : public Medium {
 private:
@@ -79,7 +80,6 @@ private:
         //self->initScreenFBO(fbW, fbH);
         glViewport(x, y, w, h);
     }
-
 
 
     void initBuffers(int w, int h) {

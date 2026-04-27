@@ -18,7 +18,7 @@ float kernel(float i)
 
 void main()
 {
-    vec3 col = vec3(0.0);
+    vec4 col = vec4(0.0);
     float dx = 4.0 / u_resolution.x;
 
     float k_total = 0.0;
@@ -26,8 +26,8 @@ void main()
     {
         float k   = kernel(i);
         k_total  += k;
-        col      += k * texture(screenTexture, TexCoord + vec2(i * dx, 0.0)).rgb;
+        col      += k * texture(screenTexture, TexCoord + vec2(i * dx, 0.0)).rgba;
     }
 
-    FragColor = vec4(col / k_total, 1.0);
+    FragColor = vec4(col / k_total);
 }

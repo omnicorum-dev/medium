@@ -28,16 +28,25 @@
 class MediumOpenGL : public Medium {
 private:
     GLFWwindow* window = nullptr;
-    GLuint shader = {};
+    GLuint standardShader = {};
+    GLuint defaultScreenShader = {};
     GLuint vao = {};
     u32* frontBuffer = nullptr;
 
     GLuint fbo = 0;
     GLuint fbo_texture = 0;
 
+    GLuint screenShader = 0;
+    GLuint screenFragFBO = 0;
+    GLuint screenFragTexture = 0;
+
     GLuint screen_texture = 0;
 
+    int evenOddFrame = 0;
+
     struct Viewport { int x, y, w, h; };
+
+    Viewport viewport{};
 
     [[nodiscard]] Viewport computeLetterboxViewport(const int winW, const int winH) const {
         const float targetAspect = (float)GAME_WIDTH / (float)GAME_HEIGHT;
@@ -60,11 +69,18 @@ private:
         return { vpX, vpY, vpW, vpH };
     }
 
+
     static void framebufferSizeCallback(GLFWwindow* window, const int width, const int height) {
-        const MediumOpenGL* self = static_cast<MediumOpenGL*>(glfwGetWindowUserPointer(window));
+        auto* self = static_cast<MediumOpenGL*>(glfwGetWindowUserPointer(window));
         auto [x, y, w, h] = self->computeLetterboxViewport(width, height);
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        self->viewport = self->computeLetterboxViewport(fbW, fbH);
+        //self->initScreenFBO(fbW, fbH);
         glViewport(x, y, w, h);
     }
+
+
 
     void initBuffers(int w, int h) {
         frontBuffer = new std::uint32_t[w * h];
@@ -72,6 +88,25 @@ private:
 
         std::memset(frontBuffer, 0, w * h * sizeof(std::uint32_t));
         std::memset(backBuffer,  0, w * h * sizeof(std::uint32_t));
+    }
+
+    void initScreenFBO(int w, int h)
+    {
+        glGenFramebuffers(1, &screenFragFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, screenFragFBO);
+
+        glGenTextures(1, &screenFragTexture);
+        glBindTexture(GL_TEXTURE_2D, screenFragTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screenFragTexture, 0);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cerr << "Screen FBO incomplete!" << std::endl;
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void initTexture(int w, int h) {
@@ -228,7 +263,7 @@ private:
     void render_screen() {
         //glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(shader);
+        glUseProgram(standardShader);
         glBindVertexArray(vao);
         glBindTexture(GL_TEXTURE_2D, screen_texture);
 
@@ -252,12 +287,13 @@ private:
 
 public:
 
-    /*
-    void renderCanvas(const Graphite::Canvas& externalCanvas) {
-        upload_buffer(externalCanvas.getPixels());
-        render_screen();
+    [[nodiscard]] GLuint getDefaultScreenShader() const {
+        return defaultScreenShader;
     }
-    */
+
+    void setScreenShader(const GLuint shader_) {
+        screenShader = shader_;
+    }
 
     static GLuint createCustomShader(const char* fragSrc) {
         const char* vertSrc = R"(
@@ -282,6 +318,7 @@ public:
         return createCustomShader(src.c_str());
     }
 
+    /*
     void renderCanvas(const Graphite::Canvas& externalCanvas, GLuint customShader = 0,
                   int x = 0, int y = 0, int w = -1, int h = -1) {
 
@@ -323,8 +360,105 @@ public:
             render_screen();
         }
     }
+    */
 
-    void present() const {
+    void renderCanvas(const Graphite::Canvas& externalCanvas, GLuint customShader = 0,
+                  int x = 0, int y = 0, int w = -1, int h = -1) {
+
+        if (w == -1) w = GAME_WIDTH;
+        if (h == -1) h = GAME_HEIGHT;
+
+        upload_buffer(externalCanvas.getPixels());
+
+        // Pass 1 : CANVAS -> CANVAS SHADER -> FBO_TEXTURE
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glViewport(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        GLuint canvasShader = (customShader == 0) ? standardShader : customShader;
+
+        applyRect(canvasShader, 0, 0, GAME_WIDTH, GAME_HEIGHT); // fullscreen in FBO
+        glBindVertexArray(vao);
+        glBindTexture(GL_TEXTURE_2D, screen_texture);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        // Pass 2 : FBO_TEXTURE -> DEFAULT SHADER -> SCREEN_FBO_TEXTURE
+        /*
+        glBindFramebuffer(GL_FRAMEBUFFER, screenFragFBO);
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        auto vp = computeLetterboxViewport(fbW, fbH);
+        glViewport(vp.x, vp.y, vp.w, vp.h);
+        glClearColor(0, 0, 0, 1);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        applyRect(standardShader, x, y, w, h);
+        glBindVertexArray(vao);
+        glBindTexture(GL_TEXTURE_2D, fbo_texture);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        */
+        glBindFramebuffer(GL_FRAMEBUFFER, screenFragFBO);
+        glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glUseProgram(standardShader);
+        glUniform2f(glGetUniformLocation(standardShader, "u_scale"),  1.0f, 1.0f);
+        glUniform2f(glGetUniformLocation(standardShader, "u_offset"), 0.0f, 0.0f);
+        glBindVertexArray(vao);
+        glBindTexture(GL_TEXTURE_2D, fbo_texture);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
+
+    void present() {
+        int fbW, fbH;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        auto vp = computeLetterboxViewport(fbW, fbH);
+
+        // -----------------------------
+        // Back to default framebuffer
+        // -----------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(vp.x, vp.y, vp.w, vp.h);
+
+        glDisable(GL_BLEND); // usually safer for full-screen post FX
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // -----------------------------
+        // FINAL POST-PROCESS SHADER (CRT)
+        // -----------------------------
+        glUseProgram(screenShader); // <-- THIS is your final screen shader
+
+        // Bind the fully composed scene
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, screenFragTexture);
+
+        // IMPORTANT: match sampler in CRT shader
+        glUniform1i(glGetUniformLocation(screenShader, "screenTexture"), 0);
+
+        // Optional uniforms if your CRT uses them
+        glUniform2f(glGetUniformLocation(screenShader, "u_resolution"),
+                    (float)vp.w, (float)vp.h);
+
+        glUniform1f(glGetUniformLocation(screenShader, "u_time"),
+                    (float)glfwGetTime());
+
+        glUniform1f(glGetUniformLocation(screenShader, "u_frame"), static_cast<float>(evenOddFrame));
+
+        // -----------------------------
+        // DRAW FULLSCREEN QUAD
+        // -----------------------------
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+
+        // -----------------------------
+        // PRESENT TO SCREEN
+        // -----------------------------
         glfwSwapBuffers(window);
     }
 
@@ -375,25 +509,6 @@ public:
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        initBuffers(SCREEN_WIDTH, SCREEN_HEIGHT);
-        initTexture(GAME_WIDTH, GAME_HEIGHT);
-        initFBO(GAME_WIDTH, GAME_HEIGHT);
-
-        /*
-        const char* vertexSrc = R"(
-            #version 330 core
-            layout(location = 0) in vec2 aPos;
-            layout(location = 1) in vec2 aTexCoord;
-
-            out vec2 TexCoord;
-
-            void main() {
-                gl_Position = vec4(aPos, 0.0, 1.0);
-                TexCoord = aTexCoord;
-            }
-        )";
-        */
-
         const char* vertexSrc = R"(
             #version 330 core
             layout(location = 0) in vec2 aPos;
@@ -423,13 +538,19 @@ public:
             }
         )";
 
-        shader = createShaderProgram(vertexSrc, fragmentSrc);
+        standardShader = createShaderProgram(vertexSrc, fragmentSrc);
+        defaultScreenShader = standardShader;
+        screenShader = standardShader;
         vao = createFullscreenQuadVAO();
 
         int fbW, fbH;
         glfwGetFramebufferSize(window, &fbW, &fbH);
-        auto [x, y, w, h] = computeLetterboxViewport(fbW, fbH);
-        glViewport(x, y, w, h);
+        initBuffers(GAME_WIDTH, GAME_HEIGHT);
+        initTexture(GAME_WIDTH, GAME_HEIGHT);
+        initFBO(GAME_WIDTH, GAME_HEIGHT);
+        initScreenFBO(fbW, fbH);
+        viewport = computeLetterboxViewport(fbW, fbH);
+        glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
         glClearColor(0, 0, 0, 1);
 
         return 0;
@@ -439,29 +560,27 @@ public:
         double last_time = glfwGetTime();
 
         while (!glfwWindowShouldClose(window)) {
-
             double now = glfwGetTime();
             deltaTime = float(now - last_time);
             last_time = now;
 
             glfwPollEvents();
 
-            // Recompute letterbox every frame — handles resize automatically
+            // Recompute letterbox only if needed
             int fbW, fbH;
             glfwGetFramebufferSize(window, &fbW, &fbH);
-            auto vp = computeLetterboxViewport(fbW, fbH);
-            glViewport(vp.x, vp.y, vp.w, vp.h);
 
-            glClear(GL_COLOR_BUFFER_BIT);  // <-- move clear to here, once per frame
+            // Use stored viewport from callback
+            glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
+
+            glClear(GL_COLOR_BUFFER_BIT);
 
             canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
             gameUpdate(deltaTime);
 
-            swap_buffers();
-            //upload_buffer(frontBuffer);
-            //render_screen();
+            evenOddFrame = (evenOddFrame == 0) ? 1 : 0;
 
-            //glfwSwapBuffers(window);
+            swap_buffers();
             present();
         }
     }

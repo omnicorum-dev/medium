@@ -15,8 +15,8 @@
 
 using namespace Graphite;
 
-#define WIDTH  (1920/2)
-#define HEIGHT (1080/2)
+#define WIDTH  (1920/3)
+#define HEIGHT (1080/3)
 
 #define LOG_LEVEL_CMD 6
 
@@ -48,6 +48,7 @@ Input::GlobalEventCallback Input::globalCallback;
 //Canvas& canvas = game.canvas;
 Canvas background(WIDTH, HEIGHT);
 Canvas canvas(WIDTH, HEIGHT);
+Canvas ballCanvas(WIDTH, HEIGHT);
 Canvas ui(WIDTH, HEIGHT);
 Canvas zBuffer(WIDTH, HEIGHT);
 
@@ -81,6 +82,7 @@ std::string userInput;
 
 void clearNew() {
     canvas.clear();
+    ballCanvas.clear();
     ui.clear();
     zBuffer.clear();
 }
@@ -93,7 +95,10 @@ Canvas teapotTex(assetRoot / "teapot_6_tex.png");
 
 Canvas uvTex(assetRoot / "uv_tex.jpg");
 
-GLuint testShader = 0;
+GLuint drunkShader = 0;
+GLuint screenShader1 = 0;
+GLuint screenShader2 = 0;
+GLuint screenShader3 = 0;
 
 Camera camera = {
     {0, 0, -2},
@@ -159,6 +164,21 @@ void handleCommand(const std::string& command) {
         }
         if (word == "clear") {
             logger.clear();
+        }
+        if (word == "screen") {
+            ss >> word;
+            if (commandFailed(ss, word)) return;
+            if (word == "0") {
+                game.setScreenShader(game.getDefaultScreenShader());
+            } else if (word == "1") {
+                game.setScreenShader(screenShader1);
+            } else if (word == "2") {
+                game.setScreenShader(screenShader2);
+            } else if (word == "3") {
+                game.setScreenShader(screenShader3);
+            } else {
+                commandFailed(command);
+            }
         }
         if (word == "render") {
             ss >> word;
@@ -384,27 +404,27 @@ void gameUpdate(const f32 dt) {
     switch (renderType) {
         case TEX:
             camera.drawObjectTexture(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
-            camera.drawObjectTexture(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectTexture(sphere, ballCanvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
             break;
         case COLOR:
             camera.drawObjectColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
-            camera.drawObjectColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectColor(sphere, ballCanvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
             break;
         case DEPTH:
             camera.drawObjectDepth(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
-            camera.drawObjectDepth(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectDepth(sphere, ballCanvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
             break;
         case VERTEX:
             camera.drawObjectVertexColor(teapot, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
-            camera.drawObjectVertexColor(sphere, canvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectVertexColor(sphere, ballCanvas, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
             break;
         case SINGLE:
             camera.drawObjectSingleColor(teapot, canvas, objectColor, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
-            camera.drawObjectSingleColor(sphere, canvas, objectColor, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
+            camera.drawObjectSingleColor(sphere, ballCanvas, objectColor, {.zBuffer = &zBuffer, .diffuse = diffuseLightingEnabled, .sunVector = sun});
     }
 
     if (renderVertices) {
-        camera.drawObjectVertices(sphere, canvas, vertexColor, vertexPointSize);
+        camera.drawObjectVertices(sphere, ballCanvas, vertexColor, vertexPointSize);
         camera.drawObjectVertices(teapot, canvas, vertexColor, vertexPointSize);
     }
 
@@ -438,7 +458,8 @@ void gameUpdate(const f32 dt) {
     }
 
     game.renderCanvas(background);
-    game.renderCanvas(canvas, drunk ? testShader : 0);
+    game.renderCanvas(canvas, drunk ? drunkShader : 0);
+    game.renderCanvas(ballCanvas);
     game.renderCanvas(ui);
 }
 
@@ -484,7 +505,10 @@ int main(int argc, char **argv) {
         }
     )");
 
-    testShader = MediumOpenGL::buildShader(assetRoot / "testFrag.glsl");
+    drunkShader = MediumOpenGL::buildShader(assetRoot / "testFrag.glsl");
+    screenShader1 = MediumOpenGL::buildShader(assetRoot / "crtFrag.glsl");
+    screenShader2 = MediumOpenGL::buildShader(assetRoot / "crtFrag2.glsl");
+    screenShader3 = MediumOpenGL::buildShader(assetRoot / "crtFrag3.glsl");
 
     Input::instance = new InputGLFW(&game);
     Input::registerEventCallback(MED_MOUSE_BUTTON_LEFT, MED_PRESS, leftMouseClick);

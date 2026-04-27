@@ -30,7 +30,7 @@
 class MediumOpenGL : public Medium {
 private:
     GLFWwindow* window = nullptr;
-    GLuint shader = {};
+    GLuint standardShader = {};
     GLuint vao = {};
     u32* frontBuffer = nullptr;
 
@@ -312,7 +312,7 @@ private:
 
     void render_screen() {
         glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(shader);
+        glUseProgram(standardShader);
         glBindVertexArray(vao);
         glBindTexture(GL_TEXTURE_2D, screen_texture);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -327,7 +327,7 @@ public:
     // -----------------------------------------------------------------------
 
     [[nodiscard]] GLuint getQuadVAO()          const { return vao; }
-    [[nodiscard]] GLuint getDefaultShader()    const { return shader; }
+    [[nodiscard]] GLuint getDefaultShader()    const { return standardShader; }
     [[nodiscard]] GLuint getDepthMergeShader() const { return depthMergeShader_; }
     [[nodiscard]] GLuint getDepthCheckShader() const { return depthCheckShader_; }
     [[nodiscard]] GLuint getSceneDepthTex()    const { return sceneDepthTex_; }
@@ -422,7 +422,7 @@ public:
             }
         )";
 
-        shader = createShaderProgram(vertexSrc, fragmentSrc);
+        standardShader = createShaderProgram(vertexSrc, fragmentSrc);
         vao = createFullscreenQuadVAO();
 
         int fbW, fbH;

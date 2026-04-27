@@ -18,7 +18,7 @@ void main()
     float waveSpeed = 5.0;
     float waveAmount = 0.075;
 
-    vec2 uv = vec2(TexCoord.x, 1.0 - TexCoord.y);
+    vec2 uv = vec2(TexCoord.x, TexCoord.y);
     float shift = sin(uv.y * waveSpacing + u_time * waveSpeed) * waveAmount;
     uv.x = fract(uv.x + shift);
     FragColor = texture(screenTexture, uv);

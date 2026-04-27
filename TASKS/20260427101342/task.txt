@@ -1,0 +1,7 @@
+20260427101342
+Crashes sometimes with the shaders
+90
+open
+bug,fatal,shaders,rendering
+
+The program crashes seemingly randomly. behaviour started after adding shader integration

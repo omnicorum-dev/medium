@@ -5,7 +5,6 @@
 #ifndef MEDIUMOPENGL_H
 #define MEDIUMOPENGL_H
 
-#include <cstring>
 #include <filesystem>
 #include <stdexcept>
 #include <glad/glad.h>
@@ -32,7 +31,6 @@ private:
     GLuint standardShader = {};
     GLuint defaultScreenShader = {};
     GLuint vao = {};
-    u32* frontBuffer = nullptr;
 
     GLuint fbo = 0;
     GLuint fbo_texture = 0;
@@ -44,6 +42,9 @@ private:
     GLuint screen_texture = 0;
 
     int evenOddFrame = 0;
+
+    bool pendingResize = false;
+    int pendingFbW = 0, pendingFbH = 0;
 
     struct Viewport { int x, y, w, h; };
 
@@ -57,11 +58,11 @@ private:
         if (windowAspect > targetAspect) {
             // Window is wider than canvas → pillarbox
             vpH = winH;
-            vpW = (int)(winH * targetAspect);
+            vpW = static_cast<int>(winH * targetAspect);
         } else {
             // Window is taller than canvas → letterbox
             vpW = winW;
-            vpH = (int)(winW / targetAspect);
+            vpH = static_cast<int>(winW / targetAspect);
         }
 
         const int vpX = (winW - vpW) / 2;
@@ -70,24 +71,35 @@ private:
         return { vpX, vpY, vpW, vpH };
     }
 
-
+    /*
     static void framebufferSizeCallback(GLFWwindow* window, const int width, const int height) {
         auto* self = static_cast<MediumOpenGL*>(glfwGetWindowUserPointer(window));
         auto [x, y, w, h] = self->computeLetterboxViewport(width, height);
         int fbW, fbH;
         glfwGetFramebufferSize(window, &fbW, &fbH);
         self->viewport = self->computeLetterboxViewport(fbW, fbH);
-        //self->initScreenFBO(fbW, fbH);
         glViewport(x, y, w, h);
     }
+    */
 
+    static void framebufferSizeCallback(GLFWwindow* window, const int width, const int height) {
+        auto* self = static_cast<MediumOpenGL*>(glfwGetWindowUserPointer(window));
+        // Don't touch GL here — just record that a resize happened
+        self->pendingResize = true;
+        self->pendingFbW = width;
+        self->pendingFbH = height;
+    }
 
-    void initBuffers(int w, int h) {
-        frontBuffer = new std::uint32_t[w * h];
-        backBuffer  = new std::uint32_t[w * h];
+    void resizeFBOs(int fbW, int fbH) {
+        if (fbW <= 0 || fbH <= 0) return; // guard against minimized window
 
-        std::memset(frontBuffer, 0, w * h * sizeof(std::uint32_t));
-        std::memset(backBuffer,  0, w * h * sizeof(std::uint32_t));
+        glDeleteTextures(1, &screenFragTexture);
+        glDeleteFramebuffers(1, &screenFragFBO);
+        screenFragTexture = 0;
+        screenFragFBO = 0;
+
+        initScreenFBO(fbW, fbH);
+        viewport = computeLetterboxViewport(fbW, fbH);
     }
 
     void initScreenFBO(int w, int h)
@@ -203,8 +215,8 @@ private:
         return program;
     }
 
-    GLuint createFullscreenQuadVAO() {
-        float vertices[] = {
+    static GLuint createFullscreenQuadVAO() {
+        const float vertices[] = {
             // pos      // uv
             -1.f, -1.f,  0.f, 1.f,
              1.f, -1.f,  1.f, 1.f,
@@ -226,48 +238,19 @@ private:
         glVertexAttribPointer(
             0, 2, GL_FLOAT, GL_FALSE,
             4 * sizeof(float),
-            (void*)0
+            static_cast<void *>(nullptr)
         );
 
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(
             1, 2, GL_FLOAT, GL_FALSE,
             4 * sizeof(float),
-            (void*)(2 * sizeof(float))
+            reinterpret_cast<void *>(2 * sizeof(float))
         );
 
         glBindVertexArray(0);
 
         return vao;
-    }
-
-    inline void swap_buffers() {
-        std::swap(frontBuffer, backBuffer);
-    }
-
-    void upload_front_buffer() {
-        glBindTexture(GL_TEXTURE_2D, screen_texture);
-
-        glTexSubImage2D(
-            GL_TEXTURE_2D,
-            0,
-            0, 0,
-            GAME_WIDTH,
-            GAME_HEIGHT,
-            GL_RGBA,
-            GL_UNSIGNED_BYTE,
-            frontBuffer
-        );
-    }
-
-    void render_screen() {
-        //glClear(GL_COLOR_BUFFER_BIT);
-
-        glUseProgram(standardShader);
-        glBindVertexArray(vao);
-        glBindTexture(GL_TEXTURE_2D, screen_texture);
-
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
     // In the private section, change upload_front_buffer to accept a pointer:
@@ -277,8 +260,8 @@ private:
             GL_TEXTURE_2D,
             0,
             0, 0,
-            GAME_WIDTH,
-            GAME_HEIGHT,
+            static_cast<int>(GAME_WIDTH),
+            static_cast<int>(GAME_HEIGHT),
             GL_RGBA,
             GL_UNSIGNED_BYTE,
             pixels
@@ -291,21 +274,21 @@ public:
         return defaultScreenShader;
     }
 
-    void setScreenShader(const GLuint shader_) {
+    void setScreenShader(const GLuint shader_) override {
         screenShader = shader_;
     }
 
     static GLuint createCustomShader(const char* fragSrc) {
-        const char* vertSrc = R"(
-        #version 330 core
-        layout(location = 0) in vec2 aPos;
-        layout(location = 1) in vec2 aTexCoord;
-        out vec2 TexCoord;
-        void main() {
-            gl_Position = vec4(aPos, 0.0, 1.0);
-            TexCoord = aTexCoord;
-        }
-    )";
+        const auto vertSrc = R"(
+            #version 330 core
+            layout(location = 0) in vec2 aPos;
+            layout(location = 1) in vec2 aTexCoord;
+            out vec2 TexCoord;
+            void main() {
+                gl_Position = vec4(aPos, 0.0, 1.0);
+                TexCoord = aTexCoord;
+            }
+        )";
         return createShaderProgram(vertSrc, fragSrc);
     }
 
@@ -318,89 +301,33 @@ public:
         return createCustomShader(src.c_str());
     }
 
-    /*
-    void renderCanvas(const Graphite::Canvas& externalCanvas, GLuint customShader = 0,
-                  int x = 0, int y = 0, int w = -1, int h = -1) {
+    void renderCanvas(const Graphite::Canvas& externalCanvas, const GLuint customShader = 0,
+                  int x = 0, int y = 0, int w = -1, int h = -1) override {
 
         if (w == -1) w = GAME_WIDTH;
         if (h == -1) h = GAME_HEIGHT;
 
-        upload_buffer(externalCanvas.getPixels());
-
-        if (customShader != 0) {
-            // Pass 1: full canvas into FBO (always fullscreen, rect applied in pass 2)
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glViewport(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            applyRect(customShader, 0, 0, GAME_WIDTH, GAME_HEIGHT); // fullscreen in FBO
-            glBindVertexArray(vao);
-            glBindTexture(GL_TEXTURE_2D, screen_texture);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-            // Pass 2: FBO result onto screen at specified rect
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            int fbW, fbH;
-            glfwGetFramebufferSize(window, &fbW, &fbH);
-            auto vp = computeLetterboxViewport(fbW, fbH);
-            glViewport(vp.x, vp.y, vp.w, vp.h);
-            glClearColor(0, 0, 0, 1);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            applyRect(shader, x, y, w, h);
-            glBindVertexArray(vao);
-            glBindTexture(GL_TEXTURE_2D, fbo_texture);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        } else {
-            applyRect(shader, x, y, w, h);
-            render_screen();
-        }
-    }
-    */
-
-    void renderCanvas(const Graphite::Canvas& externalCanvas, GLuint customShader = 0,
-                  int x = 0, int y = 0, int w = -1, int h = -1) {
-
-        if (w == -1) w = GAME_WIDTH;
-        if (h == -1) h = GAME_HEIGHT;
+        const auto GW = static_cast<int>(GAME_WIDTH);
+        const auto GH = static_cast<int>(GAME_HEIGHT);
 
         upload_buffer(externalCanvas.getPixels());
 
         // Pass 1 : CANVAS -> CANVAS SHADER -> FBO_TEXTURE
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glViewport(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        glViewport(0, 0, GW, GH);
         glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        GLuint canvasShader = (customShader == 0) ? standardShader : customShader;
+        const GLuint canvasShader = (customShader == 0) ? standardShader : customShader;
 
-        applyRect(canvasShader, 0, 0, GAME_WIDTH, GAME_HEIGHT); // fullscreen in FBO
+        applyRect(canvasShader, 0, 0, GW, GH); // fullscreen in FBO
         glBindVertexArray(vao);
         glBindTexture(GL_TEXTURE_2D, screen_texture);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         // Pass 2 : FBO_TEXTURE -> DEFAULT SHADER -> SCREEN_FBO_TEXTURE
-        /*
-        glBindFramebuffer(GL_FRAMEBUFFER, screenFragFBO);
-        int fbW, fbH;
-        glfwGetFramebufferSize(window, &fbW, &fbH);
-        auto vp = computeLetterboxViewport(fbW, fbH);
-        glViewport(vp.x, vp.y, vp.w, vp.h);
-        glClearColor(0, 0, 0, 1);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        applyRect(standardShader, x, y, w, h);
-        glBindVertexArray(vao);
-        glBindTexture(GL_TEXTURE_2D, fbo_texture);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        */
         glBindFramebuffer(GL_FRAMEBUFFER, screenFragFBO);
         glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
         glEnable(GL_BLEND);
@@ -414,7 +341,8 @@ public:
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    void present() {
+private:
+    void present() override {
         int fbW, fbH;
         glfwGetFramebufferSize(window, &fbW, &fbH);
         auto vp = computeLetterboxViewport(fbW, fbH);
@@ -461,8 +389,7 @@ public:
         // -----------------------------
         glfwSwapBuffers(window);
     }
-
-    void applyRect(GLuint program, int x, int y, int w, int h) {
+    void applyRect(const GLuint program, const int x, const int y, const int w, const int h) override {
         // convert game pixels to NDC, Y flipped (0,0 = top left)
         float scaleX = (float)w / GAME_WIDTH;
         float scaleY = (float)h / GAME_HEIGHT;
@@ -484,7 +411,7 @@ public:
         glUniform1f(glGetUniformLocation(program, "u_time"),  time);
         glUniform1f(glGetUniformLocation(program, "u_deltaTime"),  deltaTime);
     }
-
+public:
     u32 mediumStartup() override {
         if (!glfwInit()) return -1;
 
@@ -545,7 +472,7 @@ public:
 
         int fbW, fbH;
         glfwGetFramebufferSize(window, &fbW, &fbH);
-        initBuffers(GAME_WIDTH, GAME_HEIGHT);
+        //initBuffers(GAME_WIDTH, GAME_HEIGHT);
         initTexture(GAME_WIDTH, GAME_HEIGHT);
         initFBO(GAME_WIDTH, GAME_HEIGHT);
         initScreenFBO(fbW, fbH);
@@ -567,27 +494,33 @@ public:
             glfwPollEvents();
 
             // Recompute letterbox only if needed
+            /*
             int fbW, fbH;
             glfwGetFramebufferSize(window, &fbW, &fbH);
+            */
+            if (pendingResize) {
+                pendingResize = false;
+                resizeFBOs(pendingFbW, pendingFbH);
+            }
 
             // Use stored viewport from callback
             glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
 
             glClear(GL_COLOR_BUFFER_BIT);
 
-            canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
+            //canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
             gameUpdate(deltaTime);
 
             evenOddFrame = (evenOddFrame == 0) ? 1 : 0;
 
-            swap_buffers();
+            //swap_buffers();
             present();
         }
     }
 
     u32 mediumShutdown() override {
-        delete[] frontBuffer;
-        delete[] backBuffer;
+        //delete[] frontBuffer;
+        //delete[] backBuffer;
 
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -649,6 +582,8 @@ public:
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
+    MediumOpenGL(const int consoleWidth, const int consoleHeight, const int gameWidth, const int gameHeight, const std::string& str) :
+        Medium(consoleWidth, consoleHeight, gameWidth, gameHeight, str) {};
 };
 
 #endif //MEDIUMOPENGL_H

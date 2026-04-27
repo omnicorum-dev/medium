@@ -8,12 +8,12 @@
 #include <base.h>
 #include <graphite.h>
 
+#include <utility>
+
 using namespace omni::basic;
 
 class Medium {
 public:
-    u32* backBuffer = nullptr;
-
     u32 SCREEN_WIDTH = 0;
     u32 SCREEN_HEIGHT = 0;
     u32 GAME_WIDTH = 0;
@@ -23,23 +23,18 @@ public:
 
     std::string windowName = "Graphite";
 
-    Graphite::Canvas canvas = {};
+    Medium(const u32 consoleWidth,
+        const u32 consoleHeight,
+        const u32 gameWidth,
+        const u32 gameHeight,
+        std::string windowName_ = "Graphite")
+    : SCREEN_WIDTH(consoleWidth), SCREEN_HEIGHT(consoleHeight), GAME_WIDTH(gameWidth), GAME_HEIGHT(gameHeight), windowName(std::move(windowName_)) {}
 
-    Medium() = default;
-    explicit Medium(const std::string& _windowName) {
-        windowName = _windowName;
-    }
     virtual ~Medium() = default;
 
-    void mediumInit(const u32 consoleWidth, const u32 consoleHeight, const u32 gameWidth, const u32 gameHeight) {
-        SCREEN_WIDTH = consoleWidth;
-        SCREEN_HEIGHT = consoleHeight;
-        GAME_WIDTH = gameWidth;
-        GAME_HEIGHT = gameHeight;
-    }
-
-    void setWindowName(const std::string& _windowName) {
+    virtual void setWindowName(const std::string& _windowName) {
         windowName = _windowName;
+        LOG_ERROR("setWindowName() not implemented for current platform");
     }
 
     virtual u32 mediumStartup() = 0;
@@ -48,6 +43,15 @@ public:
 
     virtual std::filesystem::path getAssetRoot() = 0;
     virtual std::filesystem::path getSaveRoot()  = 0;
+
+    virtual void renderCanvas(const Graphite::Canvas& canvas,
+        u32 customShader = 0, int x = 0, int y = 0, int w = -1, int h = -1) {
+        LOG_ERROR("renderCanvas() not implemented for current platform");
+    }
+
+    virtual void setScreenShader(u32 shader) {
+        LOG_ERROR("setScreenShader() not implemented for current platform");
+    }
 
     virtual void cursorHide() {
         LOG_ERROR("cursorHide() not implemented for current platform");
@@ -62,6 +66,16 @@ public:
     }
 
     [[nodiscard]] virtual void* getNativeWindow() const = 0;
+
+private:
+    virtual void present() {
+        LOG_ERROR("present() not implemented for current platform");
+    }
+
+    virtual void applyRect(u32 program, int x, int y, int w, int h) {
+        LOG_ERROR("applyRect() not implemented for current platform");
+    }
+
 };
 
 #endif //MEDIUM_H

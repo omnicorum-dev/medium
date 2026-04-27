@@ -3,3 +3,5 @@ cmake-build-minsizerel
 cmake-build-release
 cmake-build-relwithdebinfo
 .idea
+assets/massiveTex.jpg
+"assets/test big.obj"

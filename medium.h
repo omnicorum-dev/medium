@@ -19,6 +19,8 @@ public:
     u32 GAME_WIDTH = 0;
     u32 GAME_HEIGHT = 0;
 
+    float deltaTime = 0.0f;
+
     std::string windowName = "Graphite";
 
     Graphite::Canvas canvas = {};

@@ -32,9 +32,6 @@ private:
     GLuint vao = {};
     u32* frontBuffer = nullptr;
 
-    GLuint fbo = 0;
-    GLuint fbo_texture = 0;
-
     GLuint screen_texture = 0;
 
     struct Viewport { int x, y, w, h; };
@@ -96,26 +93,7 @@ private:
         );
     }
 
-    void initFBO(int w, int h) {
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-        glGenTextures(1, &fbo_texture);
-        glBindTexture(GL_TEXTURE_2D, fbo_texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_texture, 0);
-
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "FBO incomplete!" << std::endl;
-        }
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-
-    static GLuint createShader(const GLenum type, const char* src) {
+    GLuint createShader(const GLenum type, const char* src) {
         GLuint shader = glCreateShader(type);
         glShaderSource(shader, 1, &src, nullptr);
         glCompileShader(shader);
@@ -134,7 +112,7 @@ private:
         return shader;
     }
 
-    static GLuint createShaderProgram(const char* vertSrc, const char* fragSrc) {
+    GLuint createShaderProgram(const char* vertSrc, const char* fragSrc) {
         const GLuint vertShader = createShader(GL_VERTEX_SHADER, vertSrc);
         if (vertShader == 0) return 0;
 
@@ -226,7 +204,7 @@ private:
     }
 
     void render_screen() {
-        //glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shader);
         glBindVertexArray(vao);
@@ -235,121 +213,7 @@ private:
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    // In the private section, change upload_front_buffer to accept a pointer:
-    void upload_buffer(const u32* pixels) const {
-        glBindTexture(GL_TEXTURE_2D, screen_texture);
-        glTexSubImage2D(
-            GL_TEXTURE_2D,
-            0,
-            0, 0,
-            GAME_WIDTH,
-            GAME_HEIGHT,
-            GL_RGBA,
-            GL_UNSIGNED_BYTE,
-            pixels
-        );
-    }
-
 public:
-
-    /*
-    void renderCanvas(const Graphite::Canvas& externalCanvas) {
-        upload_buffer(externalCanvas.getPixels());
-        render_screen();
-    }
-    */
-
-    static GLuint createCustomShader(const char* fragSrc) {
-        const char* vertSrc = R"(
-        #version 330 core
-        layout(location = 0) in vec2 aPos;
-        layout(location = 1) in vec2 aTexCoord;
-        out vec2 TexCoord;
-        void main() {
-            gl_Position = vec4(aPos, 0.0, 1.0);
-            TexCoord = aTexCoord;
-        }
-    )";
-        return createShaderProgram(vertSrc, fragSrc);
-    }
-
-    static GLuint buildShader(const std::filesystem::path& fragSrc) {
-        std::ifstream ifs(fragSrc);
-        std::stringstream ss;
-        ss << ifs.rdbuf();
-
-        std::string src = ss.str();
-        return createCustomShader(src.c_str());
-    }
-
-    void renderCanvas(const Graphite::Canvas& externalCanvas, GLuint customShader = 0,
-                  int x = 0, int y = 0, int w = -1, int h = -1) {
-
-        if (w == -1) w = GAME_WIDTH;
-        if (h == -1) h = GAME_HEIGHT;
-
-        upload_buffer(externalCanvas.getPixels());
-
-        if (customShader != 0) {
-            // Pass 1: full canvas into FBO (always fullscreen, rect applied in pass 2)
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glViewport(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            applyRect(customShader, 0, 0, GAME_WIDTH, GAME_HEIGHT); // fullscreen in FBO
-            glBindVertexArray(vao);
-            glBindTexture(GL_TEXTURE_2D, screen_texture);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-            // Pass 2: FBO result onto screen at specified rect
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            int fbW, fbH;
-            glfwGetFramebufferSize(window, &fbW, &fbH);
-            auto vp = computeLetterboxViewport(fbW, fbH);
-            glViewport(vp.x, vp.y, vp.w, vp.h);
-            glClearColor(0, 0, 0, 1);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            applyRect(shader, x, y, w, h);
-            glBindVertexArray(vao);
-            glBindTexture(GL_TEXTURE_2D, fbo_texture);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        } else {
-            applyRect(shader, x, y, w, h);
-            render_screen();
-        }
-    }
-
-    void present() const {
-        glfwSwapBuffers(window);
-    }
-
-    void applyRect(GLuint program, int x, int y, int w, int h) {
-        // convert game pixels to NDC, Y flipped (0,0 = top left)
-        float scaleX = (float)w / GAME_WIDTH;
-        float scaleY = (float)h / GAME_HEIGHT;
-
-        float offsetX = ((float)x / GAME_WIDTH) * 2.0f - 1.0f + scaleX;
-        float offsetY = 1.0f - ((float)y / GAME_HEIGHT) * 2.0f - scaleY;
-
-        float time = glfwGetTime();
-
-        double mouseX, mouseY;
-
-        glfwGetCursorPos(window, &mouseX, &mouseY);
-
-        glUseProgram(program);
-        glUniform2f(glGetUniformLocation(program, "u_scale"),  scaleX, scaleY);
-        glUniform2f(glGetUniformLocation(program, "u_offset"), offsetX, offsetY);
-        glUniform2f(glGetUniformLocation(program, "u_resolution"), static_cast<float>(w), static_cast<float>(h));
-        glUniform2f(glGetUniformLocation(program, "u_mouse"), static_cast<float>(mouseX), static_cast<float>(mouseY));
-        glUniform1f(glGetUniformLocation(program, "u_time"),  time);
-        glUniform1f(glGetUniformLocation(program, "u_deltaTime"),  deltaTime);
-    }
 
     u32 mediumStartup() override {
         if (!glfwInit()) return -1;
@@ -372,14 +236,9 @@ public:
             return -1;
         }
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
         initBuffers(SCREEN_WIDTH, SCREEN_HEIGHT);
         initTexture(GAME_WIDTH, GAME_HEIGHT);
-        initFBO(GAME_WIDTH, GAME_HEIGHT);
 
-        /*
         const char* vertexSrc = R"(
             #version 330 core
             layout(location = 0) in vec2 aPos;
@@ -389,24 +248,6 @@ public:
 
             void main() {
                 gl_Position = vec4(aPos, 0.0, 1.0);
-                TexCoord = aTexCoord;
-            }
-        )";
-        */
-
-        const char* vertexSrc = R"(
-            #version 330 core
-            layout(location = 0) in vec2 aPos;
-            layout(location = 1) in vec2 aTexCoord;
-
-            out vec2 TexCoord;
-
-            uniform vec2 u_offset; // in NDC
-            uniform vec2 u_scale;  // in NDC
-
-            void main() {
-                vec2 pos = aPos * u_scale + u_offset;
-                gl_Position = vec4(pos, 0.0, 1.0);
                 TexCoord = aTexCoord;
             }
         )";
@@ -441,7 +282,7 @@ public:
         while (!glfwWindowShouldClose(window)) {
 
             double now = glfwGetTime();
-            deltaTime = float(now - last_time);
+            float dt = float(now - last_time);
             last_time = now;
 
             glfwPollEvents();
@@ -452,17 +293,14 @@ public:
             auto vp = computeLetterboxViewport(fbW, fbH);
             glViewport(vp.x, vp.y, vp.w, vp.h);
 
-            glClear(GL_COLOR_BUFFER_BIT);  // <-- move clear to here, once per frame
-
             canvas.linkCanvas(backBuffer, GAME_WIDTH, GAME_HEIGHT);
-            gameUpdate(deltaTime);
+            gameUpdate(dt);
 
             swap_buffers();
-            //upload_buffer(frontBuffer);
-            //render_screen();
+            upload_front_buffer();
+            render_screen();
 
-            //glfwSwapBuffers(window);
-            present();
+            glfwSwapBuffers(window);
         }
     }
 

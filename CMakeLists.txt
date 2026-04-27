@@ -21,6 +21,7 @@ endif()
 
 # EXECUTABLE
 add_executable(MediumTesting testing/test3d.cpp)
+#add_executable(MediumTesting testing/gpu_system.cpp)
 target_include_directories(MediumTesting PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -28,11 +29,13 @@ target_link_libraries(MediumTesting PRIVATE glfw glad Graphite)
 
 set(ASSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 
-add_custom_command(TARGET MediumTesting POST_BUILD
+add_custom_target(copy_assets ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${ASSET_DIR}
         $<TARGET_FILE_DIR:MediumTesting>/assets
 )
+
+add_dependencies(MediumTesting copy_assets)
 
 # === Platform-specific system linking ===
 if(APPLE)

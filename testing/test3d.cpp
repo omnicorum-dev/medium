@@ -11,7 +11,6 @@
 #include <graphite.h>
 #include <mediumOpenGL.h>
 #include <inputGLFW.h>
-#include <base.h>
 #include <random>
 
 using namespace Graphite;
@@ -46,8 +45,13 @@ MediumOpenGL game;
 Input* Input::instance = nullptr;
 std::map<std::pair<int,int>, Input::EventCallback> Input::eventCallbacks;
 Input::GlobalEventCallback Input::globalCallback;
-Canvas& canvas = game.canvas;
+//Canvas& canvas = game.canvas;
+Canvas background(WIDTH, HEIGHT);
+Canvas canvas(WIDTH, HEIGHT);
+Canvas ui(WIDTH, HEIGHT);
 Canvas zBuffer(WIDTH, HEIGHT);
+
+GLuint grayShader = 0;
 
 std::filesystem::path assetRoot = game.getAssetRoot();
 std::filesystem::path saveRoot  = game.getSaveRoot();
@@ -62,8 +66,8 @@ enum RenderType {
 bool  logViewEnabled = false;
 float logScroll = 0;
 int visibleLines = 10;
-bool diffuseLightingEnabled = false;
-RenderType renderType = RenderType::VERTEX;
+bool diffuseLightingEnabled = true;
+RenderType renderType = RenderType::SINGLE;
 bool renderVertices = false;
 bool renderSunVector = false;
 Color vertexColor = Colors::Blue;
@@ -71,12 +75,14 @@ Color objectColor = Colors::Green;
 Color sunVecColor = Colors::Yellow;
 int vertexPointSize = 1;
 bool captureCursor = false;
+bool drunk = false;
 
 std::string userInput;
 
 void clearNew() {
-    canvas.fill(0x18181818);
-    zBuffer.fill(0x00000000);
+    canvas.clear();
+    ui.clear();
+    zBuffer.clear();
 }
 
 Object3D sphere = loadOBJ(assetRoot / "uv_sphere.obj");
@@ -86,6 +92,8 @@ Object3D teapot = loadOBJ(assetRoot / "utah_teapot_6.obj");
 Canvas teapotTex(assetRoot / "teapot_6_tex.png");
 
 Canvas uvTex(assetRoot / "uv_tex.jpg");
+
+GLuint testShader = 0;
 
 Camera camera = {
     {0, 0, -2},
@@ -145,6 +153,9 @@ void handleCommand(const std::string& command) {
             } else {
                 game.cursorShow();
             }
+        }
+        if (word == "drunk") {
+            drunk = !drunk;
         }
         if (word == "clear") {
             logger.clear();
@@ -269,7 +280,7 @@ void leftMouseClick() {
 
 void renderLogView() {
     int y = 53;
-    canvas.fillRect(5, 40, canvas.getWidth() - 10, 12 * visibleLines + 4, Colors::Black);
+    ui.fillRect(5, 40, WIDTH - 10, 12 * visibleLines + 4, Colors::Black);
     int count = (int)logger.size();
 
     // maximum amount you can scroll upward
@@ -294,37 +305,37 @@ void renderLogView() {
         switch (logEvent.level) {
             case LOG_LEVEL_INFO:
                 msg = stringPrint(" [INFO] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Green);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::Green);
                 break;
 
             case LOG_LEVEL_DEBUG:
                 msg = stringPrint("[DEBUG] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightBlue);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::LightBlue);
                 break;
 
             case LOG_LEVEL_WARN:
                 msg = stringPrint(" [WARN] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Yellow);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::Yellow);
                 break;
 
             case LOG_LEVEL_ERROR:
                 msg = stringPrint("[ERROR] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::Red);
                 break;
 
             case LOG_LEVEL_FATAL:
                 msg = stringPrint("[FATAL] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Red);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::Red);
                 break;
 
             case LOG_LEVEL_TRACE:
                 msg = stringPrint("[TRACE] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::LightGrey);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::LightGrey);
                 break;
 
             case LOG_LEVEL_CMD:
                 msg = stringPrint("  [CMD] {}", logEvent.message);
-                canvas.writeStringBaseline(msg, 10, y, 8, Colors::Pink);
+                ui.writeStringBaseline(msg, 10, y, 8, Colors::Pink);
                 break;
             default:
                 LOG_ERROR("INVALID COMMAND TYPE");
@@ -334,8 +345,8 @@ void renderLogView() {
     }
 
 
-    canvas.fillRect(5, canvas.getHeight() - (18+25), canvas.getWidth() - 10, 18, Colors::Black);
-    canvas.writeStringBaseline(userInput + "_", 10, canvas.getHeight() - 30, 8, Colors::White);
+    ui.fillRect(5, HEIGHT - (18+25), WIDTH - 10, 18, Colors::Black);
+    ui.writeStringBaseline(userInput + "_", 10, HEIGHT - 30, 8, Colors::White);
 }
 
 fvec3 sun = glm::normalize(fvec3{-1, -1, -1});
@@ -403,7 +414,7 @@ void gameUpdate(const f32 dt) {
 
     if (positionScreen != vec2(TRANSFORM_OUT_OF_CAMERA_BOUNDS)) {
         float sphereRadius = 1;
-        const vec2 positionPixel = normalizedToScreen(positionScreen, canvas.getWidth(), canvas.getHeight());
+        const vec2 positionPixel = normalizedToScreen(positionScreen, WIDTH, HEIGHT);
         const float projectedRadius = camera.worldRadiusToPixels(spherePosition, sphereRadius, canvas);
 
         canvas.drawCircle(positionPixel, projectedRadius, Colors::Red);
@@ -412,19 +423,23 @@ void gameUpdate(const f32 dt) {
     // =========== RENDER SUN VECTOR ===========
     if (renderSunVector) {
         const vec2 sunDirCam = camera.transformDirection(sun) * 20.0f;
-        const vec2 center = {canvas.getWidth() / 2, canvas.getHeight() / 2};
-        canvas.drawArrow(center, center - sunDirCam, sunVecColor, 1, 5);
+        const vec2 center = {WIDTH / 2, HEIGHT / 2};
+        ui.drawArrow(center, center - sunDirCam, sunVecColor, 1, 5);
     }
 
     // =========== FPS COUNTER ===========
     const f32 fps = 1/dt;
     average_fps = (average_fps + fps)/2;
-    canvas.writeStringBaseline(stringPrint("FPS {}", average_fps), 10, 28, 16, Colors::White);
+    ui.writeStringBaseline(stringPrint("FPS {}", average_fps), 10, 28, 16, Colors::White);
 
     // =========== CONSOLE VIEW ===========
     if (logViewEnabled) {
         renderLogView();
     }
+
+    game.renderCanvas(background);
+    game.renderCanvas(canvas, drunk ? testShader : 0);
+    game.renderCanvas(ui);
 }
 
 int main(int argc, char **argv) {
@@ -432,6 +447,8 @@ int main(int argc, char **argv) {
 
     LOG_DEBUG("Assets Root: {}", assetRoot.string());
     LOG_DEBUG("Save Root:   {}", saveRoot.string());
+
+    background.fill({0x18, 0x18, 0x18, 0xff});
 
     teapot.tex = &uvTex;
     sphere.tex = &uvTex;
@@ -451,6 +468,23 @@ int main(int argc, char **argv) {
     LOG_WARN("Example Warn");
 
     game.mediumStartup();
+
+    grayShader = game.createCustomShader(R"(
+        #version 330 core
+        in vec2 TexCoord;
+        out vec4 FragColor;
+
+        uniform sampler2D screenTexture;
+
+        void main() {
+            vec2 flippedUV = vec2(TexCoord.x, 1.0 - TexCoord.y);
+            vec4 color = texture(screenTexture, flippedUV);
+            float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            FragColor = vec4(gray, gray, gray, color.a);
+        }
+    )");
+
+    testShader = MediumOpenGL::buildShader(assetRoot / "testFrag.glsl");
 
     Input::instance = new InputGLFW(&game);
     Input::registerEventCallback(MED_MOUSE_BUTTON_LEFT, MED_PRESS, leftMouseClick);

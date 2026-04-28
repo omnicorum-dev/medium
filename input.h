@@ -222,35 +222,32 @@
 
 class Input {
 public:
-    Medium* medium;
-    Input(Medium* medium) : medium(medium) {}
+    Medium* medium = nullptr;
 
     using EventCallback = std::function<void()>;
     using GlobalEventCallback = std::function<void(int, int, int, double, double)>;
 
-    virtual ~Input () = default;
+    virtual void initializeInput(Medium* medium_) {
+        medium = medium_;
+    }
 
-    static bool isKeyPressed(const int keycode) { return instance->isKeyPressedImpl(keycode); }
-    static bool isMouseButtonPressed(const int button) { return instance->isMouseButtonPressedImpl(button); }
-    static std::pair<float, float> getMousePosition() { return instance->getMousePositionImpl(); }
-    static float getMouseX() { return instance->getMouseXImpl(); }
-    static float getMouseY() { return instance->getMouseYImpl(); }
+    virtual ~Input() = default;
 
-    static void registerEventCallback(int eventObject, int eventType, const EventCallback &callback) {
+    virtual bool isKeyPressed(int keycode) = 0;
+    virtual bool isMouseButtonPressed(int button) = 0;
+    virtual std::pair<float, float> getMousePosition() = 0;
+    virtual float getMouseX() = 0;
+    virtual float getMouseY() = 0;
+
+    void registerEventCallback(int eventObject, int eventType, const EventCallback& callback) {
         eventCallbacks[{eventObject, eventType}] = callback;
     }
 
-    static void registerGlobalCallback(const GlobalEventCallback &callback) {
+    void registerGlobalCallback(const GlobalEventCallback& callback) {
         globalCallback = callback;
     }
 
 protected:
-    virtual bool isKeyPressedImpl(int keycode) = 0;
-    virtual bool isMouseButtonPressedImpl(int button) = 0;
-    virtual std::pair<float, float> getMousePositionImpl() = 0;
-    virtual float getMouseXImpl() = 0;
-    virtual float getMouseYImpl() = 0;
-
     virtual void eventCallbackImpl(int eventObject, int eventType) {
         auto it = eventCallbacks.find({eventObject, eventType});
         if (it != eventCallbacks.end()) {
@@ -258,16 +255,13 @@ protected:
         }
     }
 
-    virtual void globalCallbackImpl(const int object, const int action, const int mods, const double x, const double y) {
-        globalCallback(object, action, mods, x, y);
+    virtual void globalCallbackImpl(int object, int action, int mods, double x, double y) {
+        if (globalCallback)
+            globalCallback(object, action, mods, x, y);
     }
 
-    static GlobalEventCallback globalCallback;
-
-    static std::map<std::pair<int, int>, EventCallback> eventCallbacks;
-
-public:
-    static Input* instance;
+    GlobalEventCallback globalCallback;
+    std::map<std::pair<int, int>, EventCallback> eventCallbacks;
 };
 
 inline char keycodeToChar(const int keycode, const int mods)

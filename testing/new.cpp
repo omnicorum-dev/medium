@@ -14,9 +14,7 @@
 #define HEIGHT (1080/3)
 
 MediumOpenGL game(WIDTH*2, HEIGHT*2, WIDTH, HEIGHT, "DA NEW CPP");
-Input* Input::instance = nullptr;
-std::map<std::pair<int,int>, Input::EventCallback> Input::eventCallbacks;
-Input::GlobalEventCallback Input::globalCallback;
+InputGLFW input;
 
 void globalEventCallback(int key, int action, int mods, double x, double y) {
 
@@ -137,44 +135,44 @@ void gameUpdate(const float dt) {
 
     float moveSpeed = 0.f;
 
-    if (Input::isKeyPressed(MED_KEY_LEFT_SHIFT)) { moveSpeed = sprintSpeed; } else { moveSpeed = walkSpeed; }
+    if (input.isKeyPressed(MED_KEY_LEFT_SHIFT)) { moveSpeed = sprintSpeed; } else { moveSpeed = walkSpeed; }
 
     // MOVE CAMERA
-    if (Input::isKeyPressed(MED_KEY_W)) {
+    if (input.isKeyPressed(MED_KEY_W)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::FORWARD) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::FORWARD) * moveSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_S)) {
+    if (input.isKeyPressed(MED_KEY_S)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::BACKWARD) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::BACKWARD) * moveSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_A)) {
+    if (input.isKeyPressed(MED_KEY_A)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::LEFT) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::LEFT) * moveSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_D)) {
+    if (input.isKeyPressed(MED_KEY_D)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::RIGHT) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::RIGHT) * moveSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_E)) {
+    if (input.isKeyPressed(MED_KEY_E)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::UP) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::UP) * moveSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_Q)) {
+    if (input.isKeyPressed(MED_KEY_Q)) {
         gameState.camera.position = gameState.camera.position + gameState.camera.directionObj(Graphite::Dir3D::DOWN) * moveSpeed * dt;
         //car.position = car.position + gameState.camera.directionObj(Graphite::Dir3D::DOWN) * moveSpeed * dt;
     }
 
-    if (Input::isKeyPressed(MED_KEY_I)) {
+    if (input.isKeyPressed(MED_KEY_I)) {
         gameState.camera.rotation.x -= turnSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_K)) {
+    if (input.isKeyPressed(MED_KEY_K)) {
         gameState.camera.rotation.x += turnSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_J)) {
+    if (input.isKeyPressed(MED_KEY_J)) {
         gameState.camera.rotation.y -= turnSpeed * dt;
     }
-    if (Input::isKeyPressed(MED_KEY_L)) {
+    if (input.isKeyPressed(MED_KEY_L)) {
         gameState.camera.rotation.y += turnSpeed * dt;
     }
 
@@ -257,8 +255,7 @@ void gameUpdate(const float dt) {
 }
 
 void gameStart() {
-    Input::instance = new InputGLFW(&game);
-    Input::registerGlobalCallback(globalEventCallback);
+    //input.registerGlobalCallback(globalEventCallback);
 
     shader1 = MediumOpenGL::buildShader(assetRoot / "crtFrag.glsl");
     shader2 = MediumOpenGL::buildShader(assetRoot / "crtFrag2.glsl");
@@ -286,11 +283,10 @@ void gameStart() {
 
 int main(int argc, char** argv) {
     game.mediumStartup();
-
+    input.initializeInput(&game);
     gameStart();
 
     game.mediumRun(gameUpdate);
     game.mediumShutdown();
-    delete Input::instance;
     return 0;
 }

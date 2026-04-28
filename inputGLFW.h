@@ -10,55 +10,51 @@
 
 class InputGLFW : public Input {
 public:
-    InputGLFW(Medium* medium) : Input(medium) {
-        instance = this;
-        GLFWwindow* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
 
+    void initializeInput(Medium* medium_) override {
+        medium = medium_;
+        auto* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
         glfwSetWindowUserPointer(window, this);
         glfwSetKeyCallback(window, glfwKeyCallback);
         glfwSetMouseButtonCallback(window, glfwMouseButtonCallback);
         glfwSetScrollCallback(window, glfwScrollCallback);
     }
-protected:
-    bool isKeyPressedImpl(const int keycode) override {
-        GLFWwindow* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
+
+    bool isKeyPressed(int keycode) override {
+        auto* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
         const int state = glfwGetKey(window, keycode);
         return state == MED_PRESS || state == MED_REPEAT;
     }
 
-    bool isMouseButtonPressedImpl(const int button) override {
-        GLFWwindow* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
+    bool isMouseButtonPressed(int button) override {
+        auto* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
         const int state = glfwGetMouseButton(window, button);
         return state == MED_PRESS;
     }
 
-    std::pair<float, float> getMousePositionImpl() override {
-        GLFWwindow* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
+    std::pair<float, float> getMousePosition() override {
+        auto* window = static_cast<GLFWwindow*>(medium->getNativeWindow());
         double x, y;
         glfwGetCursorPos(window, &x, &y);
-        return {x, y};
+        return { x, y };
     }
 
-    float getMouseXImpl() override {
-        return getMousePositionImpl().first;
-    }
+    float getMouseX() override { return getMousePosition().first; }
+    float getMouseY() override { return getMousePosition().second; }
 
-    float getMouseYImpl() override {
-        return getMousePositionImpl().second;
-    }
-
-    static void glfwScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+private:
+    static void glfwScrollCallback(GLFWwindow* window, const double x_offset, const double y_offset) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
-        self->globalCallbackImpl(MED_MOUSE_SCROLL, 0, 0, xoffset, yoffset);
+        self->globalCallbackImpl(MED_MOUSE_SCROLL, 0, 0, x_offset, y_offset);
     }
 
-    static void glfwKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    static void glfwKeyCallback(GLFWwindow* window, const int key, int scancode, const int action, const int mods) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
         self->eventCallbackImpl(key, action);
         self->globalCallbackImpl(key, action, mods, 0, 0);
     }
 
-    static void glfwMouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    static void glfwMouseButtonCallback(GLFWwindow* window, const int button, const int action, const int mods) {
         auto* self = static_cast<InputGLFW*>(glfwGetWindowUserPointer(window));
         self->eventCallbackImpl(button, action);
         self->globalCallbackImpl(button, action, mods, 0, 0);

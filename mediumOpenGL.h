@@ -412,6 +412,12 @@ private:
         glUniform1f(glGetUniformLocation(program, "u_deltaTime"),  deltaTime);
     }
 public:
+
+    void setWindowName(const std::string &_windowName) override {
+        windowName = _windowName;
+        glfwSetWindowTitle(window, windowName.c_str());
+    }
+
     u32 mediumStartup() override {
         if (!glfwInit()) return -1;
 
@@ -582,7 +588,7 @@ public:
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
-    MediumOpenGL(const int consoleWidth, const int consoleHeight, const int gameWidth, const int gameHeight, const std::string& str) :
+    MediumOpenGL(const int consoleWidth, const int consoleHeight, const int gameWidth, const int gameHeight, const std::string& str = "Medium OpenGL") :
         Medium(consoleWidth, consoleHeight, gameWidth, gameHeight, str) {};
 };
 
